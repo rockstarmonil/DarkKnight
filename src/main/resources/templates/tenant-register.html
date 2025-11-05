@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Tenant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #0a001a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .register-card {
+            background: rgba(26, 26, 26, 0.95);
+            border-radius: 20px;
+            padding: 3rem;
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid rgba(157, 0, 255, 0.3);
+            box-shadow: 0 20px 60px rgba(157, 0, 255, 0.2);
+        }
+
+        .brand-title {
+            background: linear-gradient(135deg, #9d00ff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: #9d00ff;
+            color: #fff;
+            box-shadow: 0 0 0 0.2rem rgba(157, 0, 255, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .form-label {
+            color: #ccc;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-create {
+            background: linear-gradient(135deg, #9d00ff, #ff00ff);
+            border: none;
+            color: #fff;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .btn-create:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(157, 0, 255, 0.4);
+        }
+
+        .subdomain-preview {
+            background: rgba(157, 0, 255, 0.1);
+            border: 1px solid rgba(157, 0, 255, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            color: #9d00ff;
+            font-family: monospace;
+        }
+
+        .availability-check {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .available {
+            color: #00ff88;
+        }
+
+        .unavailable {
+            color: #ff4444;
+        }
+
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+
+        .text-muted {
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+
+        .login-link {
+            color: #9d00ff;
+            text-decoration: none;
+        }
+
+        .login-link:hover {
+            color: #ff00ff;
+        }
+    </style>
+</head>
+<body>
+<div class="register-card">
+    <div class="text-center mb-4">
+        <i class="bi bi-building text-white" style="font-size: 3rem;"></i>
+        <h1 class="brand-title">Create Your Tenant</h1>
+        <p class="text-muted">Start your multi-tenant journey</p>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <form id="registerForm">
+        <!-- Company Name -->
+        <div class="mb-3">
+            <label class="form-label">Company Name</label>
+            <input type="text" class="form-control" id="companyName" placeholder="Acme Corporation" required>
+        </div>
+
+        <!-- Subdomain -->
+        <div class="mb-3">
+            <label class="form-label">Subdomain</label>
+            <input type="text" class="form-control" id="subdomain" placeholder="acme" required pattern="[a-z0-9-]+">
+            <small class="text-muted">Only lowercase letters, numbers, and hyphens</small>
+            <div class="availability-check" id="availabilityCheck"></div>
+            <div class="subdomain-preview" id="subdomainPreview">
+                <i class="bi bi-globe me-2"></i>
+                <span id="previewUrl">yourcompany.localhost:8080</span>
+            </div>
+        </div>
+
+        <!-- Admin Email -->
+        <div class="mb-3">
+            <label class="form-label">Admin Email</label>
+            <input type="email" class="form-control" id="adminEmail" placeholder="admin@acme.com" required>
+        </div>
+
+        <!-- Admin Password -->
+        <div class="mb-3">
+            <label class="form-label">Admin Password</label>
+            <input type="password" class="form-control" id="adminPassword" placeholder="••••••••" required minlength="6">
+            <small class="text-muted">Minimum 6 characters</small>
+        </div>
+
+        <button type="submit" class="btn btn-create mt-3">
+            <i class="bi bi-rocket-takeoff me-2"></i>Create Tenant
+        </button>
+    </form>
+
+    <div class="text-center mt-4">
+        <small class="text-muted">
+            Already have an account? <a href="/login" class="login-link">Login here</a>
+        </small>
+    </div>
+</div>
+
+<script>
+    const subdomainInput = document.getElementById('subdomain');
+    const previewUrl = document.getElementById('previewUrl');
+    const availabilityCheck = document.getElementById('availabilityCheck');
+    const registerForm = document.getElementById('registerForm');
+    const alertContainer = document.getElementById('alertContainer');
+
+    // Update preview and check availability
+    let checkTimeout;
+    subdomainInput.addEventListener('input', function() {
+        let subdomain = this.value.toLowerCase().trim();
+
+        // Update preview
+        if (subdomain) {
+            previewUrl.textContent = subdomain + '.localhost:8080';
+        } else {
+            previewUrl.textContent = 'yourcompany.localhost:8080';
+        }
+
+        // Debounce availability check
+        clearTimeout(checkTimeout);
+        availabilityCheck.innerHTML = '';
+
+        if (subdomain.length >= 3) {
+            checkTimeout = setTimeout(() => checkAvailability(subdomain), 500);
+        }
+    });
+
+    // Check subdomain availability
+    function checkAvailability(subdomain) {
+        fetch('/tenant/check-subdomain?subdomain=' + encodeURIComponent(subdomain))
+            .then(res => res.json())
+            .then(data => {
+                if (data.available) {
+                    availabilityCheck.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Available';
+                    availabilityCheck.className = 'availability-check available';
+                } else {
+                    availabilityCheck.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Already taken';
+                    availabilityCheck.className = 'availability-check unavailable';
+                }
+            })
+            .catch(err => console.error('Error checking availability:', err));
+    }
+
+    // Handle form submission
+    registerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const data = {
+            subdomain: subdomainInput.value.toLowerCase().trim(),
+            companyName: document.getElementById('companyName').value.trim(),
+            adminEmail: document.getElementById('adminEmail').value.trim(),
+            adminPassword: document.getElementById('adminPassword').value
+        };
+
+        fetch('/tenant/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(res => res.json())
+            .then(response => {
+                if (response.success) {
+                    showAlert('success',
+                        'Tenant created successfully! Redirecting to login...<br>' +
+                        '<strong>Your URL:</strong> ' + response.loginUrl
+                    );
+                    setTimeout(() => {
+                        window.location.href = response.loginUrl;
+                    }, 3000);
+                } else {
+                    showAlert('danger', response.message);
+                }
+            })
+            .catch(err => {
+                showAlert('danger', 'Registration failed. Please try again.');
+                console.error('Error:', err);
+            });
+    });
+
+    function showAlert(type, message) {
+        alertContainer.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
