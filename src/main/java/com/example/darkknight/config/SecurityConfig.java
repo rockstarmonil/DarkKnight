@@ -25,19 +25,20 @@ public class SecurityConfig {
                                 "/sso/saml/**",         // SAML SSO endpoints
                                 "/sso/oauth/**",        // OAuth SSO endpoints
                                 "/oauth/**",            // OAuth callback
-                                "/tenant/register",     // ✅ NEW: Tenant registration
-                                "/tenant/check-subdomain", // ✅ NEW: Subdomain availability check
+                                "/tenant/register",     // Tenant registration
+                                "/tenant/check-subdomain", // Subdomain availability check
                                 "/login",
                                 "/register",
                                 "/api/auth/register",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
-                                "/main-admin/**"        // Super admin dashboard
+                                "/main-admin/**"        // Super admin dashboard and CRUD
                         ).permitAll()
 
                         // ✅ Protected routes
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")  // ✅ NEW: Tenant admin CRUD
                         .requestMatchers("/user/**").hasAuthority("ROLE_USER")
                         .requestMatchers("/user-dashboard").authenticated()
                         .requestMatchers("/dashboard").authenticated()

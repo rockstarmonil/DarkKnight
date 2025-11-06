@@ -52,29 +52,6 @@
             overflow: hidden;
         }
 
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            top: -50px;
-            right: -50px;
-            opacity: 0.1;
-        }
-
-        .stat-card.admins::before {
-            background: var(--neon-purple);
-        }
-
-        .stat-card.users::before {
-            background: var(--neon-blue);
-        }
-
-        .stat-card.active::before {
-            background: var(--neon-green);
-        }
-
         .stat-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(157, 0, 255, 0.3);
@@ -144,28 +121,43 @@
             color: #fff;
         }
 
-        .badge-role {
+        .badge-active {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
             padding: 0.5em 1em;
             border-radius: 20px;
-            font-weight: 600;
         }
 
-        .badge-main-admin {
-            background: rgba(157, 0, 255, 0.2);
-            color: var(--neon-purple);
-            border: 1px solid var(--neon-purple);
+        .badge-suspended {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+            border: 1px solid #ff4444;
+            padding: 0.5em 1em;
+            border-radius: 20px;
         }
 
-        .badge-admin {
-            background: rgba(255, 0, 255, 0.2);
-            color: var(--neon-pink);
-            border: 1px solid var(--neon-pink);
+        .modal-content {
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid rgba(157, 0, 255, 0.3);
         }
 
-        .badge-user {
-            background: rgba(0, 212, 255, 0.2);
-            color: var(--neon-blue);
-            border: 1px solid var(--neon-blue);
+        .form-control, .form-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--neon-purple);
+            color: #fff;
+            box-shadow: 0 0 0 0.2rem rgba(157, 0, 255, 0.25);
+        }
+
+        .form-label {
+            color: #ccc;
         }
 
         .nav-tabs .nav-link {
@@ -207,15 +199,23 @@
     </h1>
 
     <div class="stats-grid">
-        <div class="stat-card admins">
+        <div class="stat-card">
             <div class="stat-icon" style="color: var(--neon-purple);">
+                <i class="bi bi-building"></i>
+            </div>
+            <div class="stat-number" style="color: var(--neon-purple);" th:text="${totalTenants}">0</div>
+            <div class="stat-label">Total Tenants</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon" style="color: var(--neon-pink);">
                 <i class="bi bi-people-fill"></i>
             </div>
-            <div class="stat-number" style="color: var(--neon-purple);" th:text="${totalAdmins}">0</div>
+            <div class="stat-number" style="color: var(--neon-pink);" th:text="${totalAdmins}">0</div>
             <div class="stat-label">Total Admins</div>
         </div>
 
-        <div class="stat-card users">
+        <div class="stat-card">
             <div class="stat-icon" style="color: var(--neon-blue);">
                 <i class="bi bi-person-circle"></i>
             </div>
@@ -223,18 +223,23 @@
             <div class="stat-label">Total Users</div>
         </div>
 
-        <div class="stat-card active">
+        <div class="stat-card">
             <div class="stat-icon" style="color: var(--neon-green);">
                 <i class="bi bi-check-circle-fill"></i>
             </div>
-            <div class="stat-number" style="color: var(--neon-green);">100%</div>
-            <div class="stat-label">System Status</div>
+            <div class="stat-number" style="color: var(--neon-green);" th:text="${activeTenants}">0</div>
+            <div class="stat-label">Active Tenants</div>
         </div>
     </div>
 
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#adminsTab">
+            <a class="nav-link active" data-bs-toggle="tab" href="#tenantsTab">
+                <i class="bi bi-building me-2"></i>Tenants
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#adminsTab">
                 <i class="bi bi-people me-2"></i>Admins
             </a>
         </li>
@@ -246,15 +251,15 @@
     </ul>
 
     <div class="tab-content">
-        <!-- Admins Tab -->
-        <div class="tab-pane fade show active" id="adminsTab">
+        <!-- Tenants Tab -->
+        <div class="tab-pane fade show active" id="tenantsTab">
             <div class="section-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h3 class="section-title mb-0">
-                        <i class="bi bi-people-fill me-2"></i>Admin Management
+                        <i class="bi bi-building me-2"></i>Tenant Management
                     </h3>
-                    <button class="btn btn-neon-purple">
-                        <i class="bi bi-plus-circle me-2"></i>Create Admin
+                    <button class="btn btn-neon-purple" data-bs-toggle="modal" data-bs-target="#createTenantModal">
+                        <i class="bi bi-plus-circle me-2"></i>Create Tenant
                     </button>
                 </div>
 
@@ -263,50 +268,85 @@
                         <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Username</th>
+                            <th>Company</th>
+                            <th>Subdomain</th>
+                            <th>Owner</th>
+                            <th>Users</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="tenant : ${tenants}">
+                            <td th:text="${tenant.id}">1</td>
+                            <td th:text="${tenant.name}">Company</td>
+                            <td><code th:text="${tenant.subdomain + '.localhost:8080'}">subdomain</code></td>
+                            <td th:text="${tenant.owner != null ? tenant.owner.email : 'N/A'}">owner</td>
+                            <td><span th:text="${tenant.currentUserCount}">5</span> / <span th:text="${tenant.maxUsers}">20</span></td>
+                            <td>
+                                <span th:if="${tenant.active}" class="badge badge-active">Active</span>
+                                <span th:unless="${tenant.active}" class="badge badge-suspended">Suspended</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning"
+                                        th:data-tenant-id="${tenant.id}"
+                                        onclick="editTenant(this.getAttribute('data-tenant-id'))">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info ms-1"
+                                        th:data-tenant-id="${tenant.id}"
+                                        onclick="toggleTenantStatus(this.getAttribute('data-tenant-id'))">
+                                    <i class="bi bi-power"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger ms-1"
+                                        th:data-tenant-id="${tenant.id}"
+                                        th:data-tenant-name="${tenant.name}"
+                                        onclick="deleteTenant(this.getAttribute('data-tenant-id'), this.getAttribute('data-tenant-name'))">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admins Tab -->
+        <div class="tab-pane fade" id="adminsTab">
+            <div class="section-card">
+                <h3 class="section-title">
+                    <i class="bi bi-people-fill me-2"></i>Admin Management
+                </h3>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
                             <th>Email</th>
                             <th>Name</th>
-                            <th>Role</th>
+                            <th>Tenant</th>
                             <th>Status</th>
-                            <th>Created</th>
                             <th>Actions</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="admin : ${admins}">
                             <td th:text="${admin.id}">1</td>
-                            <td th:text="${admin.username}">admin1</td>
-                            <td th:text="${admin.email}">admin@email.com</td>
+                            <td th:text="${admin.email}">email</td>
+                            <td th:text="${admin.firstName}">name</td>
+                            <td th:text="${admin.tenant != null ? admin.tenant.name : 'N/A'}">tenant</td>
                             <td>
-                                <span th:if="${admin.firstName != null and admin.lastName != null}"
-                                      th:text="${admin.firstName + ' ' + admin.lastName}">John Doe</span>
-                                <span th:if="${admin.firstName != null and admin.lastName == null}"
-                                      th:text="${admin.firstName}">John</span>
-                                <span th:if="${admin.firstName == null}" class="text-muted">N/A</span>
+                                <span th:if="${admin.enabled}" class="text-success">Active</span>
+                                <span th:unless="${admin.enabled}" class="text-danger">Inactive</span>
                             </td>
                             <td>
-                                <span class="badge badge-admin">Admin</span>
-                            </td>
-                            <td>
-                                <span th:if="${admin.enabled}" class="text-success">
-                                    <i class="bi bi-check-circle-fill"></i> Active
-                                </span>
-                                <span th:unless="${admin.enabled}" class="text-danger">
-                                    <i class="bi bi-x-circle-fill"></i> Inactive
-                                </span>
-                            </td>
-                            <td th:text="${admin.createdAt != null ? #temporals.format(admin.createdAt, 'MMM dd, yyyy') : 'N/A'}">Jan 01, 2024</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-info">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-warning ms-1">
-                                    <i class="bi bi-pencil"></i>
+                                <button class="btn btn-sm btn-outline-info"
+                                        th:data-user-id="${admin.id}"
+                                        onclick="toggleUserStatus(this.getAttribute('data-user-id'))">
+                                    <i class="bi bi-power"></i>
                                 </button>
                             </td>
-                        </tr>
-                        <tr th:if="${#lists.isEmpty(admins)}">
-                            <td colspan="8" class="text-center text-muted">No admins found</td>
                         </tr>
                         </tbody>
                     </table>
@@ -320,49 +360,33 @@
                 <h3 class="section-title">
                     <i class="bi bi-person-lines-fill me-2"></i>All Users
                 </h3>
-
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Username</th>
                             <th>Email</th>
                             <th>Name</th>
-                            <th>Role</th>
+                            <th>Tenant</th>
                             <th>Status</th>
-                            <th>Created</th>
+                            <th>Actions</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="user : ${users}">
                             <td th:text="${user.id}">1</td>
-                            <td th:text="${user.username}">user1</td>
-                            <td th:text="${user.email}">user@email.com</td>
+                            <td th:text="${user.email}">email</td>
+                            <td th:text="${user.firstName}">name</td>
+                            <td th:text="${user.tenant != null ? user.tenant.name : 'N/A'}">tenant</td>
                             <td>
-                                <span th:if="${user.firstName != null and user.lastName != null}"
-                                      th:text="${user.firstName + ' ' + user.lastName}">Jane Doe</span>
-                                <span th:if="${user.firstName != null and user.lastName == null}"
-                                      th:text="${user.firstName}">Jane</span>
-                                <span th:if="${user.firstName == null}" class="text-muted">N/A</span>
+                                <span th:if="${user.enabled}" class="text-success">Active</span>
+                                <span th:unless="${user.enabled}" class="text-danger">Inactive</span>
                             </td>
                             <td>
-                                <span th:if="${user.role == 'ROLE_SUPER_ADMIN'}" class="badge badge-main-admin">Main Admin</span>
-                                <span th:if="${user.role == 'ROLE_ADMIN'}" class="badge badge-admin">Admin</span>
-                                <span th:if="${user.role == 'ROLE_USER'}" class="badge badge-user">User</span>
+                                <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteUser(' + ${user.id} + ')'">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </td>
-                            <td>
-                                <span th:if="${user.enabled}" class="text-success">
-                                    <i class="bi bi-check-circle-fill"></i> Active
-                                </span>
-                                <span th:unless="${user.enabled}" class="text-danger">
-                                    <i class="bi bi-x-circle-fill"></i> Inactive
-                                </span>
-                            </td>
-                            <td th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'MMM dd, yyyy') : 'N/A'}">Jan 01, 2024</td>
-                        </tr>
-                        <tr th:if="${#lists.isEmpty(users)}">
-                            <td colspan="7" class="text-center text-muted">No users found</td>
                         </tr>
                         </tbody>
                     </table>
@@ -372,6 +396,117 @@
     </div>
 </div>
 
+<!-- Create Tenant Modal -->
+<div class="modal fade" id="createTenantModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Tenant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createTenantForm">
+                    <div class="mb-3">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="tenantCompanyName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subdomain</label>
+                        <input type="text" class="form-control" id="tenantSubdomain" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Admin Email</label>
+                        <input type="email" class="form-control" id="tenantAdminEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Admin Password</label>
+                        <input type="password" class="form-control" id="tenantAdminPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Max Users</label>
+                        <input type="number" class="form-control" id="tenantMaxUsers" value="20">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-neon-purple" onclick="createTenant()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    async function createTenant() {
+        const data = {
+            companyName: document.getElementById('tenantCompanyName').value,
+            subdomain: document.getElementById('tenantSubdomain').value,
+            adminEmail: document.getElementById('tenantAdminEmail').value,
+            adminPassword: document.getElementById('tenantAdminPassword').value,
+            maxUsers: document.getElementById('tenantMaxUsers').value
+        };
+
+        try {
+            const response = await fetch('/main-admin/tenants/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error creating tenant');
+        }
+    }
+
+    async function toggleTenantStatus(id) {
+        if (!confirm('Toggle tenant status?')) return;
+        try {
+            const response = await fetch(`/main-admin/tenants/${id}/toggle-status`, {method: 'POST'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error toggling status');
+        }
+    }
+
+    async function deleteTenant(id, name) {
+        if (!confirm(`Delete tenant "${name}" and all its users?`)) return;
+        try {
+            const response = await fetch(`/main-admin/tenants/${id}`, {method: 'DELETE'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error deleting tenant');
+        }
+    }
+
+    async function toggleUserStatus(id) {
+        try {
+            const response = await fetch(`/main-admin/users/${id}/toggle-status`, {method: 'POST'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error toggling user status');
+        }
+    }
+
+    async function deleteUser(id) {
+        if (!confirm('Delete this user?')) return;
+        try {
+            const response = await fetch(`/main-admin/users/${id}`, {method: 'DELETE'});
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) location.reload();
+        } catch (error) {
+            alert('Error deleting user');
+        }
+    }
+</script>
 </body>
 </html>
