@@ -6,8 +6,10 @@ import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
 
 import java.util.Optional;
 
@@ -17,21 +19,23 @@ public class TenantInterceptor implements HandlerInterceptor {
     @Autowired
     private TenantRepository tenantRepository;
 
+    @Value("${app.domain:localhost}")
+    private String appDomain;
+
+    @Value("${app.environment:development}")
+    private String environment;
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        String host = request.getServerName(); // e.g., "acme.localhost" or "localhost"
+        String host = request.getServerName();
         String subdomain = extractSubdomain(host);
 
         System.out.println("🌐 Request Host: " + host);
         System.out.println("🔍 Extracted Subdomain: " + subdomain);
 
-        // Skip tenant resolution for main admin routes
+        // Skip tenant resolution for main admin routes and static resources
         String requestUri = request.getRequestURI();
-        if (requestUri.startsWith("/main-admin") ||
-                requestUri.startsWith("/tenant/register") ||
-                requestUri.startsWith("/css") ||
-                requestUri.startsWith("/js") ||
-                requestUri.startsWith("/images")) {
+        if (shouldSkipTenantResolution(requestUri)) {
             System.out.println("⚪ Skipping tenant resolution for: " + requestUri);
             return true;
         }
@@ -49,10 +53,12 @@ public class TenantInterceptor implements HandlerInterceptor {
                     return false;
                 }
 
-                // Set tenant context
+                // ✅ Set BOTH tenant ID (Long) and subdomain (String)
                 TenantContext.setTenantId(tenant.getId());
                 TenantContext.setSubdomain(subdomain);
-                System.out.println("✅ Tenant resolved: " + tenant.getName() + " (ID: " + tenant.getId() + ")");
+
+                System.out.println("✅ Tenant resolved: " + tenant.getName() +
+                        " (ID: " + tenant.getId() + ", Subdomain: " + subdomain + ")");
             } else {
                 System.out.println("⚠️ Tenant not found for subdomain: " + subdomain);
                 response.sendRedirect("/error?message=Tenant+not+found");
@@ -65,42 +71,89 @@ public class TenantInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    // ✅ CRITICAL FIX: Move clear() to postHandle instead of afterCompletion
+    // This ensures TenantContext is available during controller execution
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
-        // Clear tenant context after request completes
+    public void postHandle(HttpServletRequest request, HttpServletResponse response,
+                           Object handler, ModelAndView modelAndView) throws Exception {
+        // Don't clear yet - wait for afterCompletion
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
+                                Object handler, Exception ex) throws Exception {
+        // ✅ Now clear after the entire request is complete
         TenantContext.clear();
+        System.out.println("🧹 TenantContext cleared after request completion");
+    }
+
+    /**
+     * Check if tenant resolution should be skipped for this URI
+     */
+    private boolean shouldSkipTenantResolution(String requestUri) {
+        return requestUri.startsWith("/main-admin") ||
+                requestUri.startsWith("/tenant/register") ||
+                requestUri.startsWith("/tenant/check-subdomain") ||
+                requestUri.startsWith("/css") ||
+                requestUri.startsWith("/js") ||
+                requestUri.startsWith("/images") ||
+                requestUri.startsWith("/static") ||
+                requestUri.startsWith("/favicon.ico") ||
+                requestUri.startsWith("/error");
     }
 
     /**
      * Extract subdomain from host
-     * Examples:
-     *   "acme.localhost" -> "acme"
-     *   "localhost" -> null
-     *   "acme.yourdomain.com" -> "acme"
-     *   "yourdomain.com" -> null
      */
     private String extractSubdomain(String host) {
-        if (host == null) return null;
+        if (host == null || host.isEmpty()) {
+            return null;
+        }
 
         // Remove port if present
         if (host.contains(":")) {
             host = host.substring(0, host.indexOf(":"));
         }
 
+        // Convert to lowercase
+        host = host.toLowerCase();
+
+        // Check if it's just the base domain
+        if (host.equals(appDomain)) {
+            return null;
+        }
+
         // Split by dots
         String[] parts = host.split("\\.");
 
-        // For localhost: "acme.localhost" -> parts = ["acme", "localhost"]
-        if (parts.length >= 2 && "localhost".equals(parts[parts.length - 1])) {
-            return parts[0];
+        // Development mode (localhost)
+        if ("development".equalsIgnoreCase(environment) || appDomain.equals("localhost")) {
+            if (parts.length >= 2 && "localhost".equals(parts[parts.length - 1])) {
+                return parts[0];
+            }
+            if (parts.length == 1 && "localhost".equals(parts[0])) {
+                return null;
+            }
         }
 
-        // For production: "acme.yourdomain.com" -> parts = ["acme", "yourdomain", "com"]
-        if (parts.length >= 3) {
-            return parts[0];
+        // Production mode
+        String[] domainParts = appDomain.split("\\.");
+        int domainPartCount = domainParts.length;
+
+        if (parts.length > domainPartCount) {
+            boolean baseMatches = true;
+            for (int i = 0; i < domainPartCount; i++) {
+                if (!parts[parts.length - domainPartCount + i].equals(domainParts[i])) {
+                    baseMatches = false;
+                    break;
+                }
+            }
+
+            if (baseMatches) {
+                return parts[0];
+            }
         }
 
-        // No subdomain found
         return null;
     }
 }

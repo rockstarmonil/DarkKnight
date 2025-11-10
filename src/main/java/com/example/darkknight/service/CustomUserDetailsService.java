@@ -1,14 +1,14 @@
+// File: com.example.darkknight.service.CustomUserDetailsService.java
+
 package com.example.darkknight.service;
 
 import com.example.darkknight.model.User;
 import com.example.darkknight.repository.UserRepository;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.example.darkknight.security.CustomUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.Collections;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
@@ -20,15 +20,12 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    // ➡️ FIX: The input parameter is now treated as the email address
+    // The method signature MUST remain 'loadUserByUsername' as required by the interface
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email) // ⬅️ CRITICAL CHANGE: Find user by email
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
-        // ✅ Map the actual role from the database
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority(user.getRole()))
-        );
+        return new CustomUserDetails(user);
     }
 }

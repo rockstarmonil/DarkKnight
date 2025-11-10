@@ -1,21 +1,15 @@
 package com.example.darkknight.util;
 
-/**
- * Thread-local storage for current tenant context
- * This allows us to track which tenant is making the current request
- */
 public class TenantContext {
-
-    private static final ThreadLocal<Long> currentTenant = new ThreadLocal<>();
+    private static final ThreadLocal<Long> currentTenantId = new ThreadLocal<>();
     private static final ThreadLocal<String> currentSubdomain = new ThreadLocal<>();
 
     public static void setTenantId(Long tenantId) {
-        currentTenant.set(tenantId);
-        System.out.println("🔹 TenantContext: Set tenant ID = " + tenantId);
+        currentTenantId.set(tenantId);
     }
 
     public static Long getTenantId() {
-        return currentTenant.get();
+        return currentTenantId.get();
     }
 
     public static void setSubdomain(String subdomain) {
@@ -27,12 +21,11 @@ public class TenantContext {
     }
 
     public static void clear() {
-        currentTenant.remove();
+        currentTenantId.remove();
         currentSubdomain.remove();
-        System.out.println("🔹 TenantContext: Cleared");
     }
 
     public static boolean hasTenant() {
-        return currentTenant.get() != null;
+        return currentTenantId.get() != null;
     }
 }

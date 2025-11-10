@@ -19,7 +19,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public routes (OAuth, JWT, SAML, etc.)
+                        // ✅ Public Routes (Permit All)
                         .requestMatchers(
                                 "/jwt/**",              // JWT SSO endpoints
                                 "/sso/saml/**",         // SAML SSO endpoints
@@ -27,31 +27,35 @@ public class SecurityConfig {
                                 "/oauth/**",            // OAuth callback
                                 "/tenant/register",     // Tenant registration
                                 "/tenant/check-subdomain", // Subdomain availability check
-                                "/login",
+                                "/login",               // ✅ Login page and POST handled by AuthController
                                 "/register",
                                 "/api/auth/register",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
-                                "/main-admin/**"        // Super admin dashboard and CRUD
+                                "/error",
+                                "/"
                         ).permitAll()
 
-                        // ✅ Protected routes
+                        // ✅ Protected Routes - Role-based access
+                        .requestMatchers("/main-admin/**").hasAuthority("ROLE_SUPER_ADMIN")
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")  // ✅ NEW: Tenant admin CRUD
-                        .requestMatchers("/user/**").hasAuthority("ROLE_USER")
-                        .requestMatchers("/user-dashboard").authenticated()
+                        .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
+
+                        // Dashboard redirects
                         .requestMatchers("/dashboard").authenticated()
 
+                        // Any other request must be authenticated
                         .anyRequest().authenticated()
                 )
 
-                // ✅ Standard form login
+                // ✅ CRITICAL FIX: Disable default form login since we handle it manually
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .loginProcessingUrl("/spring-login")  // Changed so manual login works
-                        .successHandler(customAuthenticationSuccessHandler())
+                        .loginProcessingUrl("/spring-security-login") // ✅ Dummy URL - never used
                         .permitAll()
+                        .disable() // ✅ Disable Spring Security's form login processing
                 )
 
                 // ✅ Logout setup
@@ -63,31 +67,13 @@ public class SecurityConfig {
                         .permitAll()
                 )
 
-                // ✅ Session management for SSO
+                // ✅ Session management
                 .sessionManagement(session -> session
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false)
                 );
 
         return http.build();
-    }
-
-    // ✅ Redirect based on role for normal login
-    @Bean
-    public AuthenticationSuccessHandler customAuthenticationSuccessHandler() {
-        return (HttpServletRequest request,
-                HttpServletResponse response,
-                Authentication authentication) -> {
-
-            boolean isAdmin = authentication.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-            if (isAdmin) {
-                response.sendRedirect("/admin/dashboard");
-            } else {
-                response.sendRedirect("/user/dashboard");
-            }
-        };
     }
 
     @Bean

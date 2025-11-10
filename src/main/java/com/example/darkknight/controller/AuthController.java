@@ -1,9 +1,13 @@
 package com.example.darkknight.controller;
 
 import com.example.darkknight.model.Tenant;
+import com.example.darkknight.model.TenantSsoConfig;
 import com.example.darkknight.model.User;
 import com.example.darkknight.repository.TenantRepository;
 import com.example.darkknight.repository.UserRepository;
+import com.example.darkknight.security.CustomUserDetails;
+import com.example.darkknight.service.TenantSsoConfigService;
+import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,10 +21,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Controller
@@ -35,38 +36,44 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // ✅ Serve login page
-    @GetMapping("/login")
-    public String loginPage() {
-        return "login";
-    }
+    @Autowired
+    private TenantSsoConfigService ssoConfigService;
 
-    // ✅ Handle login manually - This catches admin/admin BEFORE Spring Security
+    // ========================================
+    // LOGIN FORM SUBMISSION (POST)
+    // ========================================
+
     @PostMapping("/login")
-    public String loginUser(@RequestParam String username,
+    public String loginUser(@RequestParam String email,
                             @RequestParam String password,
                             HttpServletRequest request,
                             Model model) {
 
-        // Get current subdomain from request
-        String host = request.getServerName();
-        String subdomain = extractSubdomain(host);
+        Long tenantId = TenantContext.getTenantId();
+        String subdomain = TenantContext.getSubdomain();
 
-        // 🟣 1️⃣ Super Admin hardcoded login check (FIRST PRIORITY)
-        // Super admin can ONLY login on main domain (no subdomain)
-        if ("admin".equalsIgnoreCase(username) && "admin".equals(password)) {
+        System.out.println("🔐 Login attempt - Email: " + email + ", Subdomain: " + subdomain);
+        System.out.println("📍 TenantContext - TenantId: " + tenantId + ", Subdomain: " + subdomain);
+
+        // ==========================================
+        // 1. SUPER ADMIN LOGIN CHECK
+        // ==========================================
+        if ("admin@system.com".equalsIgnoreCase(email) && "admin".equals(password)) {
+            // Super admin cannot access tenant subdomains
             if (subdomain != null && !subdomain.isEmpty()) {
                 model.addAttribute("error", "Super admin cannot access tenant subdomains. Please use: http://localhost:8080/login");
+                addLoginPageAttributes(model, tenantId, subdomain);
                 return "login";
             }
 
+            // Create super admin session
             HttpSession session = request.getSession(true);
-            session.setAttribute("superAdmin", username);
+            session.setAttribute("superAdmin", "admin@system.com");
             session.setAttribute("isLoggedIn", true);
 
             var authority = new SimpleGrantedAuthority("ROLE_SUPER_ADMIN");
             var auth = new UsernamePasswordAuthenticationToken(
-                    "admin", null, Collections.singletonList(authority));
+                    "admin@system.com", null, Collections.singletonList(authority));
             SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
@@ -74,123 +81,164 @@ public class AuthController {
             return "redirect:/main-admin/dashboard";
         }
 
-        // 🟣 2️⃣ Normal user validation from DB
-        User user = userRepository.findByUsername(username).orElse(null);
+        // ==========================================
+        // 2. NORMAL USER VALIDATION
+        // ==========================================
+        User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
-            model.addAttribute("error", "Invalid username or password!");
+            System.out.println("❌ Invalid credentials for email: " + email);
+            model.addAttribute("error", "Invalid email or password!");
+            addLoginPageAttributes(model, tenantId, subdomain);
             return "login";
         }
 
-        // 🟣 3️⃣ TENANT VALIDATION - Check if user's tenant matches current subdomain
+        System.out.println("✅ User found: " + user.getEmail() + " (Role: " + user.getRole() + ")");
+        System.out.println("📍 User Tenant: " + (user.getTenant() != null ? user.getTenant().getName() : "NO TENANT"));
+        System.out.println("📍 User Tenant Subdomain: " + (user.getTenant() != null ? user.getTenant().getSubdomain() : "NO SUBDOMAIN"));
+        System.out.println("📍 User Enabled: " + user.isEnabled());
+
+        // ==========================================
+        // 3. TENANT VALIDATION
+        // ==========================================
         if (user.getTenant() != null) {
-            String userTenantSubdomain = user.getTenant().getSubdomain();
+            Tenant userTenant = user.getTenant();
+            String userTenantSubdomain = userTenant.getSubdomain();
 
-            // User must login on their tenant's subdomain
-            if (subdomain == null) {
-                model.addAttribute("error", "Please login at: http://" + userTenantSubdomain + ".localhost:8080/login");
-                return "login";
-            }
+            System.out.println("🔍 Comparing subdomains - User's tenant: '" + userTenantSubdomain + "', Current: '" + subdomain + "'");
 
-            if (!userTenantSubdomain.equals(subdomain)) {
-                model.addAttribute("error", "You cannot login to this tenant. Please use: http://" + userTenantSubdomain + ".localhost:8080/login");
+            // Check if user is accessing correct tenant subdomain
+            if (subdomain == null || !userTenantSubdomain.equalsIgnoreCase(subdomain)) {
+                String errorMsg = subdomain == null
+                        ? "Please login at: http://" + userTenantSubdomain + ".localhost:8080/login"
+                        : "You cannot login to this tenant. Please use: http://" + userTenantSubdomain + ".localhost:8080/login";
+
+                System.out.println("❌ Tenant mismatch - User tenant: " + userTenantSubdomain + ", Current subdomain: " + subdomain);
+                model.addAttribute("error", errorMsg);
+                addLoginPageAttributes(model, tenantId, subdomain);
                 return "login";
             }
 
             // Check if tenant is active
-            if (!user.getTenant().isActive()) {
+            if (!userTenant.isActive()) {
+                System.out.println("❌ Tenant is suspended: " + userTenant.getName());
                 model.addAttribute("error", "This tenant is currently suspended. Please contact support.");
+                addLoginPageAttributes(model, tenantId, subdomain);
                 return "login";
             }
+
+            System.out.println("✅ Tenant validation passed - Tenant: " + userTenant.getName() + " is active");
         } else {
-            // Users without tenant can only login on main domain
+            // User without tenant trying to access tenant subdomain
             if (subdomain != null) {
+                System.out.println("❌ User has no tenant but accessing subdomain: " + subdomain);
                 model.addAttribute("error", "This user does not belong to any tenant.");
+                addLoginPageAttributes(model, tenantId, subdomain);
                 return "login";
             }
         }
 
+        // ==========================================
+        // 4. CHECK IF USER IS ENABLED
+        // ==========================================
+        if (!user.isEnabled()) {
+            System.out.println("❌ User account is disabled: " + user.getEmail());
+            model.addAttribute("error", "Your account has been disabled. Please contact your administrator.");
+            addLoginPageAttributes(model, tenantId, subdomain);
+            return "login";
+        }
+
+        // ==========================================
+        // 5. CREATE AUTHENTICATION
+        // ==========================================
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+
+        var auth = new UsernamePasswordAuthenticationToken(
+                userDetails,
+                null,
+                userDetails.getAuthorities());
+
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        // ==========================================
+        // 6. CREATE SESSION
+        // ==========================================
         HttpSession session = request.getSession(true);
         session.setAttribute("user", user);
         session.setAttribute("isLoggedIn", true);
-
-        var authority = new SimpleGrantedAuthority(user.getRole());
-        var auth = new UsernamePasswordAuthenticationToken(
-                user.getUsername(), null, Collections.singletonList(authority));
-        SecurityContextHolder.getContext().setAuthentication(auth);
         session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
-        // 🟣 4️⃣ Role-based redirect
-        if (user.getRole().equalsIgnoreCase("ROLE_ADMIN")) {
-            return "redirect:/admin/dashboard";
+        System.out.println("✅ User authenticated successfully: " + user.getEmail());
+        System.out.println("✅ Authentication created with authorities: " + userDetails.getAuthorities());
+
+        // ==========================================
+        // 7. ROLE-BASED REDIRECT
+        // ==========================================
+        if ("ROLE_ADMIN".equalsIgnoreCase(user.getRole())) {
+            System.out.println("🎯 Redirecting ROLE_ADMIN to tenant admin dashboard");
+            return "redirect:/tenant-admin/dashboard";
         } else {
+            System.out.println("🎯 Redirecting ROLE_USER to user dashboard");
             return "redirect:/user/dashboard";
         }
     }
 
-    /**
-     * Extract subdomain from host
-     */
-    private String extractSubdomain(String host) {
-        if (host == null) return null;
+    // ========================================
+    // DASHBOARD REDIRECT LOGIC
+    // ========================================
 
-        // Remove port if present
-        if (host.contains(":")) {
-            host = host.substring(0, host.indexOf(":"));
-        }
-
-        // Split by dots
-        String[] parts = host.split("\\.");
-
-        // For localhost: "acme.localhost" -> parts = ["acme", "localhost"]
-        if (parts.length >= 2 && "localhost".equals(parts[parts.length - 1])) {
-            return parts[0];
-        }
-
-        // For production: "acme.yourdomain.com" -> parts = ["acme", "yourdomain", "com"]
-        if (parts.length >= 3) {
-            return parts[0];
-        }
-
-        // No subdomain found
-        return null;
-    }
-
-    // ✅ Serve register page
-    @GetMapping("/register")
-    public String registerPage() {
-        return "register";
-    }
-
-    // ✅ Redirect user after login (used by Spring Security session)
     @GetMapping("/dashboard")
     public String redirectDashboard(Model model, Authentication authentication) {
-        String username = authentication.getName();
 
-        if ("admin".equalsIgnoreCase(username)) {
+        System.out.println("🔄 Dashboard redirect - Principal type: " + authentication.getPrincipal().getClass().getName());
+
+        // Super Admin redirect
+        if (authentication.getPrincipal() instanceof String &&
+                "admin@system.com".equalsIgnoreCase(authentication.getName())) {
+            System.out.println("🎯 Redirecting super admin to main-admin dashboard");
             return "redirect:/main-admin/dashboard";
         }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Normal user redirect
+        if (authentication.getPrincipal() instanceof CustomUserDetails) {
+            String principalEmail = ((CustomUserDetails) authentication.getPrincipal()).getUsername();
 
-        if (user.getRole().equalsIgnoreCase("ROLE_ADMIN")) {
-            return "redirect:/admin/dashboard";
-        } else {
-            return "redirect:/user/dashboard";
+            User user = userRepository.findByEmail(principalEmail)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
+
+            System.out.println("🔄 User role: " + user.getRole());
+
+            if ("ROLE_ADMIN".equalsIgnoreCase(user.getRole())) {
+                System.out.println("🎯 Redirecting to tenant-admin dashboard");
+                return "redirect:/tenant-admin/dashboard";
+            } else {
+                System.out.println("🎯 Redirecting to user dashboard");
+                return "redirect:/user/dashboard";
+            }
         }
+
+        throw new RuntimeException("Invalid authentication principal type: " +
+                authentication.getPrincipal().getClass().getName());
     }
 
-    // ✅ Super Admin Dashboard (Updated with Tenants)
+    // ========================================
+    // MAIN ADMIN DASHBOARD (SUPER ADMIN)
+    // ========================================
+
     @GetMapping("/main-admin/dashboard")
     public String mainAdminDashboard(HttpSession session, Model model) {
-        String superAdmin = (String) session.getAttribute("superAdmin");
-        if (superAdmin == null) {
+        String superAdmin = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        System.out.println("🔍 Main Admin Dashboard - Authentication name: " + superAdmin);
+
+        if (superAdmin == null || !superAdmin.equalsIgnoreCase("admin@system.com")) {
+            System.out.println("❌ Unauthorized access to main admin dashboard");
             return "redirect:/login";
         }
 
+        // Create super admin user object for display
         User adminUser = new User();
-        adminUser.setUsername("admin");
+        adminUser.setUsername("admin@system.com");
         adminUser.setEmail("admin@system.com");
         adminUser.setFirstName("Super");
         adminUser.setLastName("Admin");
@@ -199,115 +247,146 @@ public class AuthController {
         adminUser.setCreatedAt(LocalDateTime.now());
         adminUser.setUpdatedAt(LocalDateTime.now());
 
+        // Get all users
         List<User> allUsers = userRepository.findAll();
-
         List<User> admins = allUsers.stream()
                 .filter(u -> u.getRole() != null && u.getRole().equalsIgnoreCase("ROLE_ADMIN"))
                 .collect(Collectors.toList());
-
         List<User> users = allUsers.stream()
                 .filter(u -> u.getRole() != null && u.getRole().equalsIgnoreCase("ROLE_USER"))
                 .collect(Collectors.toList());
 
-        // ✅ NEW: Get all tenants
+        // Get all tenants
         List<Tenant> allTenants = tenantRepository.findAll();
         long totalTenants = allTenants.size();
         long activeTenants = allTenants.stream().filter(Tenant::isActive).count();
-
-        long totalAdmins = admins.size();
-        long totalUsers = users.size();
 
         model.addAttribute("user", adminUser);
         model.addAttribute("superAdmin", superAdmin);
         model.addAttribute("admins", admins);
         model.addAttribute("users", users);
-        model.addAttribute("totalAdmins", totalAdmins);
-        model.addAttribute("totalUsers", totalUsers);
+        model.addAttribute("totalAdmins", (long) admins.size());
+        model.addAttribute("totalUsers", (long) users.size());
         model.addAttribute("tenants", allTenants);
         model.addAttribute("totalTenants", totalTenants);
         model.addAttribute("activeTenants", activeTenants);
 
-        System.out.println("✅ Main Admin Dashboard - Tenants: " + totalTenants + ", Admins: " + totalAdmins + ", Users: " + totalUsers);
+        System.out.println("✅ Main Admin Dashboard - Tenants: " + totalTenants +
+                ", Admins: " + admins.size() + ", Users: " + users.size());
 
         return "main-admin-dashboard";
     }
 
-    // ✅ Admin Dashboard (Tenant-specific)
-    @GetMapping("/admin/dashboard")
-    public String adminDashboard(Model model, Authentication authentication) {
-        String username = authentication.getName();
-        User admin = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("Admin not found"));
+    // ========================================
+    // USER DASHBOARD
+    // ========================================
 
-        // Check if this is a tenant admin
-        if (admin.getTenant() != null) {
-            // TENANT ADMIN - Show only their tenant's users
-            Tenant tenant = admin.getTenant();
-
-            // Get only users from this tenant (optimized query)
-            List<User> tenantUsers = userRepository.findByTenantId(tenant.getId());
-
-            // Calculate stats
-            long totalUsers = tenantUsers.size();
-            long activeUsers = tenantUsers.stream().filter(User::isEnabled).count();
-            long totalAdmins = tenantUsers.stream()
-                    .filter(u -> "ROLE_ADMIN".equals(u.getRole()))
-                    .count();
-            int availableSlots = tenant.getMaxUsers() - (int) totalUsers;
-
-            model.addAttribute("admin", admin);
-            model.addAttribute("tenant", tenant);
-            model.addAttribute("users", tenantUsers);
-            model.addAttribute("totalUsers", totalUsers);
-            model.addAttribute("activeUsers", activeUsers);
-            model.addAttribute("totalAdmins", totalAdmins);
-            model.addAttribute("availableSlots", availableSlots);
-
-            System.out.println("✅ Tenant Admin Dashboard - Tenant: " + tenant.getName() + ", Users: " + totalUsers);
-
-            return "tenant-admin-dashboard";
-        } else {
-            // Regular admin without tenant (shouldn't happen normally)
-            model.addAttribute("admin", admin);
-            model.addAttribute("users", userRepository.findAll());
-            return "admin-dashboard";
-        }
-    }
-
-    // ✅ User Dashboard
     @GetMapping("/user/dashboard")
     public String userDashboard(Model model, Authentication authentication) {
-        String username = authentication.getName();
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!(authentication.getPrincipal() instanceof CustomUserDetails)) {
+            System.out.println("❌ Invalid principal type for user dashboard");
+            return "redirect:/login?error";
+        }
+
+        CustomUserDetails customUser = (CustomUserDetails) authentication.getPrincipal();
+        String principalEmail = customUser.getUsername();
+
+        User user = userRepository.findByEmail(principalEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
+
         model.addAttribute("user", user);
+
+        System.out.println("✅ User Dashboard - User: " + user.getEmail());
+
         return "user-dashboard";
     }
 
-    // ✅ Register User API (AJAX)
+    // ========================================
+    // REGISTRATION
+    // ========================================
+
+    @GetMapping("/register")
+    public String registerPage() {
+        return "register";
+    }
+
     @PostMapping("/api/auth/register")
     @ResponseBody
     public Map<String, Object> registerUser(@RequestBody User user) {
         Map<String, Object> response = new HashMap<>();
 
-        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
-            response.put("message", "Username already exists!");
-            return response;
+        try {
+            // Check if email already exists
+            if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+                response.put("success", false);
+                response.put("message", "Email already exists!");
+                return response;
+            }
+
+            // Set username equal to email
+            user.setUsername(user.getEmail());
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            user.setRole("ROLE_USER");
+            user.setEnabled(true);
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+
+            userRepository.save(user);
+
+            response.put("success", true);
+            response.put("message", "User registered successfully!");
+
+            System.out.println("✅ New user registered: " + user.getEmail());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "Registration failed: " + e.getMessage());
         }
 
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            response.put("message", "Email already exists!");
-            return response;
-        }
-
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRole("ROLE_USER");
-        user.setEnabled(true);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-
-        userRepository.save(user);
-        response.put("message", "User registered successfully!");
         return response;
+    }
+
+    // ========================================
+    // UTILITY METHODS
+    // ========================================
+
+    /**
+     * Add required attributes for login page
+     */
+    private void addLoginPageAttributes(Model model, Long tenantId, String subdomain) {
+        String tenantName = "Application";
+        boolean samlEnabled = false;
+        boolean oauthEnabled = false;
+        boolean jwtEnabled = false;
+        TenantSsoConfig ssoConfig = null;
+
+        if (tenantId != null) {
+            Optional<Tenant> tenantOpt = tenantRepository.findById(tenantId);
+            if (tenantOpt.isPresent()) {
+                Tenant tenant = tenantOpt.get();
+                tenantName = tenant.getName();
+
+                Optional<TenantSsoConfig> configOpt = ssoConfigService.getSsoConfigByTenantId(tenantId);
+                if (configOpt.isPresent()) {
+                    ssoConfig = configOpt.get();
+                    samlEnabled = Boolean.TRUE.equals(ssoConfig.getSamlEnabled());
+                    oauthEnabled = Boolean.TRUE.equals(ssoConfig.getOauthEnabled());
+                    jwtEnabled = Boolean.TRUE.equals(ssoConfig.getJwtEnabled());
+                }
+            }
+        }
+
+        model.addAttribute("tenantName", tenantName);
+        model.addAttribute("subdomain", subdomain);
+        model.addAttribute("samlEnabled", samlEnabled);
+        model.addAttribute("oauthEnabled", oauthEnabled);
+        model.addAttribute("jwtEnabled", jwtEnabled);
+        model.addAttribute("anySsoEnabled", samlEnabled || oauthEnabled || jwtEnabled);
+
+        if (ssoConfig != null) {
+            model.addAttribute("ssoConfig", ssoConfig);
+        }
     }
 }

@@ -12,6 +12,7 @@
             --neon-pink: #ff00ff;
             --neon-blue: #00d4ff;
             --neon-green: #00ff88;
+            --neon-orange: #ff9d00;
         }
 
         body {
@@ -174,8 +175,212 @@
             box-shadow: 0 0 0 0.2rem rgba(157, 0, 255, 0.25);
         }
 
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
         .form-label {
             color: #ccc;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-text {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        /* SSO Configuration Sections */
+        .sso-config-section {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .sso-config-section.saml-section {
+            border-left: 4px solid var(--neon-blue);
+        }
+
+        .sso-config-section.oauth-section {
+            border-left: 4px solid var(--neon-green);
+        }
+
+        .sso-config-section.jwt-section {
+            border-left: 4px solid var(--neon-pink);
+        }
+
+        .sso-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sso-section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .sso-section-title.saml {
+            color: var(--neon-blue);
+        }
+
+        .sso-section-title.oauth {
+            color: var(--neon-green);
+        }
+
+        .sso-section-title.jwt {
+            color: var(--neon-pink);
+        }
+
+        .form-switch .form-check-input {
+            width: 3rem;
+            height: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-switch .form-check-input:checked {
+            background-color: var(--neon-purple);
+            border-color: var(--neon-purple);
+        }
+
+        .input-group .form-control[readonly] {
+            background: rgba(157, 0, 255, 0.05) !important;
+            border-color: rgba(157, 0, 255, 0.2);
+        }
+
+        .copy-btn {
+            background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+            border: none;
+            color: white;
+            transition: all 0.3s;
+            padding: 0.5rem 1rem;
+        }
+
+        .copy-btn:hover {
+            box-shadow: 0 5px 15px rgba(157, 0, 255, 0.4);
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .field-group {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .field-group-title {
+            font-weight: 600;
+            color: var(--neon-orange);
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .alert {
+            border-radius: 10px;
+            border: none;
+            margin-top: 1rem;
+        }
+
+        .alert-success {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+        }
+
+        .alert-danger {
+            background: rgba(255, 0, 0, 0.1);
+            color: #ff5555;
+            border: 1px solid #ff5555;
+        }
+
+        .alert-warning {
+            background: rgba(255, 157, 0, 0.1);
+            color: var(--neon-orange);
+            border: 1px solid var(--neon-orange);
+        }
+
+        .config-badge {
+            display: inline-block;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            color: var(--neon-orange);
+            margin-top: 0.25rem;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #888;
+            z-index: 10;
+        }
+
+        .password-toggle:hover {
+            color: var(--neon-purple);
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .btn-close-white {
+            filter: brightness(0) invert(1);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-badge.active {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+        }
+
+        .status-badge.inactive {
+            background: rgba(255, 85, 85, 0.2);
+            color: #ff5555;
+            border: 1px solid #ff5555;
+        }
+
+        .save-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
         }
     </style>
 </head>
@@ -188,7 +393,7 @@
         <div class="ms-auto">
             <span class="text-muted me-3">
                 <i class="bi bi-person-badge-fill me-1"></i>
-                <span th:text="${admin.email}">Admin</span>
+                <span th:text="${admin.email}">admin@tenant.com</span>
             </span>
             <form th:action="@{/logout}" method="post" class="d-inline">
                 <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -204,22 +409,22 @@
         <i class="bi bi-speedometer2 me-2"></i>Dashboard
     </h1>
 
-    <!-- Tenant Info Card -->
+    <!-- Tenant Info -->
     <div class="tenant-info">
         <h3><i class="bi bi-building me-2"></i><span th:text="${tenant.name}">Company Name</span></h3>
         <p><strong>Subdomain:</strong> <code th:text="${tenant.subdomain + '.localhost:8080'}">subdomain.localhost:8080</code></p>
-        <p><strong>User Limit:</strong> <span th:text="${tenant.currentUserCount}">5</span> / <span th:text="${tenant.maxUsers}">20</span> users</p>
+        <p><strong>User Limit:</strong> <span th:text="${totalUsers}">5</span> / <span th:text="${tenant.maxUsers}">20</span> users</p>
         <p><strong>Status:</strong>
-            <span th:if="${tenant.active}" class="text-success">
+            <span th:if="${tenant.active}" class="status-badge active">
                 <i class="bi bi-check-circle-fill"></i> Active
             </span>
-            <span th:unless="${tenant.active}" class="text-danger">
+            <span th:unless="${tenant.active}" class="status-badge inactive">
                 <i class="bi bi-x-circle-fill"></i> Suspended
             </span>
         </p>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- Stats Grid -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon" style="color: var(--neon-blue);">
@@ -246,11 +451,11 @@
         </div>
     </div>
 
-    <!-- Users Table -->
+    <!-- User Management Section -->
     <div class="section-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3 class="section-title mb-0">
-                <i class="bi bi-people me-2"></i>Your Users
+                <i class="bi bi-people me-2"></i>User Management
             </h3>
             <button class="btn btn-neon-purple" data-bs-toggle="modal" data-bs-target="#addUserModal">
                 <i class="bi bi-plus-circle me-2"></i>Add User
@@ -273,7 +478,7 @@
                 <tr th:each="user : ${users}">
                     <td th:text="${user.id}">1</td>
                     <td th:text="${user.email}">user@email.com</td>
-                    <td th:text="${user.firstName != null ? user.firstName : 'N/A'}">John</td>
+                    <td th:text="${user.firstName != null ? user.firstName + ' ' + (user.lastName ?: '') : 'N/A'}">John Doe</td>
                     <td>
                         <span th:if="${user.role == 'ROLE_ADMIN'}" class="badge badge-admin">Admin</span>
                         <span th:if="${user.role == 'ROLE_USER'}" class="badge badge-user">User</span>
@@ -287,24 +492,16 @@
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-warning"
-                                th:data-user-id="${user.id}"
-                                onclick="editUser(this.getAttribute('data-user-id'))">
+                        <button class="btn btn-sm btn-outline-warning" th:data-user-id="${user.id}" onclick="editUser(this.getAttribute('data-user-id'))">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-info ms-1"
-                                th:data-user-id="${user.id}"
-                                onclick="toggleUserStatus(this.getAttribute('data-user-id'))">
+                        <button class="btn btn-sm btn-outline-info ms-1" th:data-user-id="${user.id}" onclick="toggleUserStatus(this.getAttribute('data-user-id'))">
                             <i class="bi bi-power"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-primary ms-1"
-                                th:data-user-id="${user.id}"
-                                onclick="resetPassword(this.getAttribute('data-user-id'))">
+                        <button class="btn btn-sm btn-outline-primary ms-1" th:data-user-id="${user.id}" onclick="resetPassword(this.getAttribute('data-user-id'))">
                             <i class="bi bi-key"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger ms-1"
-                                th:data-user-id="${user.id}"
-                                onclick="deleteUser(this.getAttribute('data-user-id'))">
+                        <button class="btn btn-sm btn-outline-danger ms-1" th:data-user-id="${user.id}" onclick="deleteUser(this.getAttribute('data-user-id'))">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
@@ -314,6 +511,296 @@
                 </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- SSO Configuration Section -->
+    <div class="section-card">
+        <h3 class="section-title mb-4">
+            <i class="bi bi-shield-lock me-2"></i>SSO Configuration
+        </h3>
+
+        <!-- ========== SAML CONFIGURATION ========== -->
+        <div class="sso-config-section saml-section">
+            <div class="sso-section-header">
+                <h4 class="sso-section-title saml">
+                    <i class="bi bi-person-rolodex me-2"></i>SAML Single Sign-On
+                </h4>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="samlEnabled"
+                           th:checked="${ssoConfig.samlEnabled}" name="samlEnabled">
+                    <label class="form-check-label text-white fw-semibold" for="samlEnabled">Enable SAML</label>
+                </div>
+            </div>
+
+            <form id="samlConfigForm" onsubmit="saveSamlConfig(event)">
+                <!-- IDP Input Fields -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-down-circle me-2"></i>Input from Identity Provider (IDP)
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="samlIdpLoginUrl" class="form-label">IDP Login URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="samlIdpLoginUrl" name="samlIdpLoginUrl"
+                                   th:value="${ssoConfig.samlIdpLoginUrl}"
+                                   placeholder="https://login.xecurify.com/moas/login" required>
+                            <div class="config-badge">saml.idp.login-url</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="samlCertificatePath" class="form-label">IDP Certificate Path</label>
+                            <input type="text" class="form-control" id="samlCertificatePath" name="samlCertificatePath"
+                                   th:value="${ssoConfig.samlCertificatePath}"
+                                   placeholder="classpath:Custom_SAML_App.cer">
+                            <div class="config-badge">saml.certificate.path</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SP Metadata (To be provided to IDP) -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-up-circle me-2"></i>Service Provider (SP) Metadata - Provide to IDP
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="samlSpEntityId" class="form-label">SP Entity ID</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="samlSpEntityId" name="samlSpEntityId"
+                                   th:value="${ssoConfig.samlSpEntityId}"
+                                   value="https://moniljain.cfd/" readonly>
+                            <button class="btn copy-btn" type="button" onclick="copyToClipboard('samlSpEntityId')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                        <div class="config-badge">saml.sp.entity-id</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="samlSpAcsUrl" class="form-label">SP Assertion Consumer Service (ACS) URL</label>
+                        <div class="input-group">
+                            <input type="url" class="form-control" id="samlSpAcsUrl" name="samlSpAcsUrl"
+                                   th:value="${ssoConfig.samlSpAcsUrl}"
+                                   value="https://moniljain.cfd/sso/saml/callback" readonly>
+                            <button class="btn copy-btn" type="button" onclick="copyToClipboard('samlSpAcsUrl')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                        <div class="config-badge">saml.sp.acs-url</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="samlSpBinding" class="form-label">SP Binding (Fixed)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="samlSpBinding" name="samlSpBinding"
+                                       th:value="${ssoConfig.samlSpBinding}"
+                                       value="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" readonly>
+                                <button class="btn copy-btn" type="button" onclick="copyToClipboard('samlSpBinding')">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                            <div class="config-badge">saml.sp.binding</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="samlSpNameIdFormat" class="form-label">NameID Format (Fixed)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="samlSpNameIdFormat" name="samlSpNameIdFormat"
+                                       th:value="${ssoConfig.samlSpNameIdFormat}"
+                                       value="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" readonly>
+                                <button class="btn copy-btn" type="button" onclick="copyToClipboard('samlSpNameIdFormat')">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                            <div class="config-badge">saml.sp.nameid-format</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="save-section">
+                    <div id="samlSaveMessage"></div>
+                    <button type="submit" class="btn btn-neon-purple">
+                        <i class="bi bi-save me-2"></i>Save SAML Configuration
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ========== OAUTH/OIDC CONFIGURATION ========== -->
+        <div class="sso-config-section oauth-section">
+            <div class="sso-section-header">
+                <h4 class="sso-section-title oauth">
+                    <i class="bi bi-google me-2"></i>OAuth/OIDC Configuration
+                </h4>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="oauthEnabled"
+                           th:checked="${ssoConfig.oauthEnabled}" name="oauthEnabled">
+                    <label class="form-check-label text-white fw-semibold" for="oauthEnabled">Enable OAuth</label>
+                </div>
+            </div>
+
+            <form id="oauthConfigForm" onsubmit="saveOauthConfig(event)">
+                <!-- IDP Input Fields -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-down-circle me-2"></i>Input from Identity Provider (IDP)
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="oauthClientId" class="form-label">Client ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="oauthClientId" name="oauthClientId"
+                                   th:value="${ssoConfig.oauthClientId}"
+                                   placeholder="your-oauth-client-id" required>
+                            <div class="config-badge">miniorange.oauth.client.id</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="oauthClientSecret" class="form-label">Client Secret <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" class="form-control" id="oauthClientSecret" name="oauthClientSecret"
+                                       th:value="${ssoConfig.oauthClientSecret}"
+                                       placeholder="your-oauth-client-secret" required>
+                                <i class="bi bi-eye password-toggle" onclick="togglePassword('oauthClientSecret')"></i>
+                            </div>
+                            <div class="config-badge">miniorange.oauth.client.secret</div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="oauthAuthorizationUrl" class="form-label">Authorization URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="oauthAuthorizationUrl" name="oauthAuthorizationUrl"
+                                   th:value="${ssoConfig.oauthAuthorizationUrl}"
+                                   placeholder="https://monil.xecurify.com/moas/idp/openidsso" required>
+                            <div class="config-badge">miniorange.oauth.authorization.url</div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="oauthTokenUrl" class="form-label">Token URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="oauthTokenUrl" name="oauthTokenUrl"
+                                   th:value="${ssoConfig.oauthTokenUrl}"
+                                   placeholder="https://monil.xecurify.com/moas/rest/oauth/token" required>
+                            <div class="config-badge">miniorange.oauth.token.url</div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="oauthUserinfoUrl" class="form-label">User Info URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="oauthUserinfoUrl" name="oauthUserinfoUrl"
+                                   th:value="${ssoConfig.oauthUserinfoUrl}"
+                                   placeholder="https://monil.xecurify.com/moas/rest/oauth/getuserinfo" required>
+                            <div class="config-badge">miniorange.oauth.userinfo.url</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redirect URI (To be provided to IDP) -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-up-circle me-2"></i>Redirect URI - Provide to IDP
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="oauthRedirectUri" class="form-label">OAuth Redirect URI</label>
+                        <div class="input-group">
+                            <input type="url" class="form-control" id="oauthRedirectUri" name="oauthRedirectUri"
+                                   th:value="${ssoConfig.oauthRedirectUri}"
+                                   value="http://moniljain.cfd/oauth/callback" readonly>
+                            <button class="btn copy-btn" type="button" onclick="copyToClipboard('oauthRedirectUri')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                        <div class="config-badge">miniorange.oauth.redirect.uri</div>
+                    </div>
+                </div>
+
+                <div class="save-section">
+                    <div id="oauthSaveMessage"></div>
+                    <button type="submit" class="btn btn-neon-purple">
+                        <i class="bi bi-save me-2"></i>Save OAuth Configuration
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ========== JWT CONFIGURATION ========== -->
+        <div class="sso-config-section jwt-section">
+            <div class="sso-section-header">
+                <h4 class="sso-section-title jwt">
+                    <i class="bi bi-lock-fill me-2"></i>JWT Configuration
+                </h4>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="jwtEnabled"
+                           th:checked="${ssoConfig.jwtEnabled}" name="jwtEnabled">
+                    <label class="form-check-label text-white fw-semibold" for="jwtEnabled">Enable JWT</label>
+                </div>
+            </div>
+
+            <form id="jwtConfigForm" onsubmit="saveJwtConfig(event)">
+                <!-- IDP Input Fields -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-down-circle me-2"></i>Input from Identity Provider (IDP)
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="jwtClientId" class="form-label">Client ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="jwtClientId" name="jwtClientId"
+                                   th:value="${ssoConfig.miniorangeClientId}"
+                                   placeholder="your-jwt-client-id" required>
+                            <div class="config-badge">miniorange.client.id</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="jwtClientSecret" class="form-label">Client Secret <span class="text-danger">*</span></label>
+                            <div class="input-wrapper">
+                                <input type="password" class="form-control" id="jwtClientSecret" name="jwtClientSecret"
+                                       th:value="${ssoConfig.miniorangeClientSecret}"
+                                       placeholder="your-jwt-client-secret" required>
+                                <i class="bi bi-eye password-toggle" onclick="togglePassword('jwtClientSecret')"></i>
+                            </div>
+                            <div class="config-badge">miniorange.client.secret</div>
+                        </div>
+
+                        <div class="col-md-12 mb-3">
+                            <label for="jwtLoginUrl" class="form-label">JWT Login URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="jwtLoginUrl" name="jwtLoginUrl"
+                                   th:value="${ssoConfig.miniorangeLoginUrl}"
+                                   placeholder="https://monil.xecurify.com/moas/idp/jwtsso/379433" required>
+                            <div class="config-badge">miniorange.login.url</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redirect URI (To be provided to IDP) -->
+                <div class="field-group">
+                    <div class="field-group-title">
+                        <i class="bi bi-arrow-up-circle me-2"></i>Redirect URI - Provide to IDP
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="jwtRedirectUri" class="form-label">JWT Redirect URI</label>
+                        <div class="input-group">
+                            <input type="url" class="form-control" id="jwtRedirectUri" name="jwtRedirectUri"
+                                   th:value="${ssoConfig.miniorangeRedirectUri}"
+                                   value="http://localhost:8080/jwt/callback" readonly>
+                            <button class="btn copy-btn" type="button" onclick="copyToClipboard('jwtRedirectUri')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                        <div class="config-badge">miniorange.redirect.uri</div>
+                    </div>
+                </div>
+
+                <div class="save-section">
+                    <div id="jwtSaveMessage"></div>
+                    <button type="submit" class="btn btn-neon-purple">
+                        <i class="bi bi-save me-2"></i>Save JWT Configuration
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -363,6 +850,195 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // ==================== UTILITY FUNCTIONS ====================
+
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        element.setSelectionRange(0, 99999);
+
+        try {
+            document.execCommand('copy');
+            showToast('success', 'Copied to clipboard!');
+        } catch (err) {
+            showToast('danger', 'Failed to copy');
+        }
+    }
+
+    function togglePassword(elementId) {
+        const element = document.getElementById(elementId);
+        const icon = event.target;
+
+        if (element.type === 'password') {
+            element.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            element.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    }
+
+    function showMessage(elementId, type, message) {
+        const element = document.getElementById(elementId);
+        const iconMap = {
+            success: 'bi-check-circle-fill',
+            danger: 'bi-x-circle-fill',
+            warning: 'bi-exclamation-triangle-fill'
+        };
+
+        element.innerHTML = `
+            <div class="alert alert-${type} mb-0">
+                <i class="bi ${iconMap[type]} me-2"></i>${message}
+            </div>
+        `;
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            element.innerHTML = '';
+        }, 5000);
+    }
+
+    function showToast(type, message) {
+        // Simple alert for now - you can implement a toast library
+        const iconMap = {
+            success: '✓',
+            danger: '✗',
+            warning: '⚠'
+        };
+        alert(iconMap[type] + ' ' + message);
+    }
+
+    // ==================== SAML CONFIGURATION ====================
+
+    async function saveSamlConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('samlConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        const data = {
+            samlEnabled: document.getElementById('samlEnabled').checked,
+            samlIdpLoginUrl: form.samlIdpLoginUrl.value,
+            samlSpEntityId: form.samlSpEntityId.value,
+            samlSpAcsUrl: form.samlSpAcsUrl.value,
+            samlSpBinding: form.samlSpBinding.value,
+            samlSpNameIdFormat: form.samlSpNameIdFormat.value,
+            samlCertificatePath: form.samlCertificatePath.value
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-saml', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showMessage('samlSaveMessage', 'success', 'SAML configuration saved successfully!');
+            } else {
+                showMessage('samlSaveMessage', 'danger', result.message || 'Failed to save SAML configuration');
+            }
+        } catch (error) {
+            console.error('SAML Save Error:', error);
+            showMessage('samlSaveMessage', 'danger', 'Network error or server unreachable');
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    // ==================== OAUTH CONFIGURATION ====================
+
+    async function saveOauthConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('oauthConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        const data = {
+            oauthEnabled: document.getElementById('oauthEnabled').checked,
+            oauthClientId: form.oauthClientId.value,
+            oauthClientSecret: form.oauthClientSecret.value,
+            oauthRedirectUri: form.oauthRedirectUri.value,
+            oauthAuthorizationUrl: form.oauthAuthorizationUrl.value,
+            oauthTokenUrl: form.oauthTokenUrl.value,
+            oauthUserinfoUrl: form.oauthUserinfoUrl.value
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-oauth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showMessage('oauthSaveMessage', 'success', 'OAuth configuration saved successfully!');
+            } else {
+                showMessage('oauthSaveMessage', 'danger', result.message || 'Failed to save OAuth configuration');
+            }
+        } catch (error) {
+            console.error('OAuth Save Error:', error);
+            showMessage('oauthSaveMessage', 'danger', 'Network error or server unreachable');
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    // ==================== JWT CONFIGURATION ====================
+
+    async function saveJwtConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('jwtConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        const data = {
+            jwtEnabled: document.getElementById('jwtEnabled').checked,
+            miniorangeLoginUrl: form.jwtLoginUrl.value,
+            miniorangeClientId: form.jwtClientId.value,
+            miniorangeClientSecret: form.jwtClientSecret.value,
+            miniorangeRedirectUri: form.jwtRedirectUri.value
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-jwt', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showMessage('jwtSaveMessage', 'success', 'JWT configuration saved successfully!');
+            } else {
+                showMessage('jwtSaveMessage', 'danger', result.message || 'Failed to save JWT configuration');
+            }
+        } catch (error) {
+            console.error('JWT Save Error:', error);
+            showMessage('jwtSaveMessage', 'danger', 'Network error or server unreachable');
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    // ==================== USER MANAGEMENT ====================
+
     async function createUser() {
         const data = {
             email: document.getElementById('userEmail').value,
@@ -379,32 +1055,48 @@
                 body: JSON.stringify(data)
             });
             const result = await response.json();
-            alert(result.message);
+
             if (result.success) {
+                showToast('success', result.message);
                 bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
                 location.reload();
+            } else {
+                showToast('danger', result.message);
             }
         } catch (error) {
-            alert('Error creating user');
+            showToast('danger', 'Error creating user');
+            console.error(error);
         }
     }
 
     async function toggleUserStatus(id) {
         if (!confirm('Toggle user status?')) return;
+
         try {
-            const response = await fetch(`/tenant-admin/users/${id}/toggle-status`, {method: 'POST'});
+            const response = await fetch(`/tenant-admin/users/${id}/toggle-status`, {
+                method: 'POST'
+            });
             const result = await response.json();
-            alert(result.message);
-            if (result.success) location.reload();
+
+            if (result.success) {
+                showToast('success', result.message);
+                location.reload();
+            } else {
+                showToast('danger', result.message);
+            }
         } catch (error) {
-            alert('Error toggling status');
+            showToast('danger', 'Error toggling status');
+            console.error(error);
         }
     }
 
     async function resetPassword(id) {
-        const newPassword = prompt('Enter new password (min 6 characters):');
-        if (!newPassword || newPassword.length < 6) {
-            alert('Password must be at least 6 characters');
+        const newPassword = prompt('Enter new password (minimum 6 characters):');
+
+        if (!newPassword) return;
+
+        if (newPassword.length < 6) {
+            showToast('warning', 'Password must be at least 6 characters');
             return;
         }
 
@@ -415,26 +1107,41 @@
                 body: JSON.stringify({newPassword})
             });
             const result = await response.json();
-            alert(result.message);
+
+            if (result.success) {
+                showToast('success', result.message);
+            } else {
+                showToast('danger', result.message);
+            }
         } catch (error) {
-            alert('Error resetting password');
+            showToast('danger', 'Error resetting password');
+            console.error(error);
         }
     }
 
     async function deleteUser(id) {
-        if (!confirm('Delete this user? This cannot be undone.')) return;
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
         try {
-            const response = await fetch(`/tenant-admin/users/${id}`, {method: 'DELETE'});
+            const response = await fetch(`/tenant-admin/users/${id}`, {
+                method: 'DELETE'
+            });
             const result = await response.json();
-            alert(result.message);
-            if (result.success) location.reload();
+
+            if (result.success) {
+                showToast('success', result.message);
+                location.reload();
+            } else {
+                showToast('danger', result.message);
+            }
         } catch (error) {
-            alert('Error deleting user');
+            showToast('danger', 'Error deleting user');
+            console.error(error);
         }
     }
 
     function editUser(id) {
-        alert('Edit user feature coming soon!');
+        showToast('warning', 'Edit user feature coming soon!');
     }
 </script>
 </body>

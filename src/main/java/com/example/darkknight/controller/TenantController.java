@@ -6,6 +6,7 @@ import com.example.darkknight.repository.TenantRepository;
 import com.example.darkknight.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -28,11 +29,23 @@ public class TenantController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Value("${app.domain:localhost}")
+    private String appDomain;
+
+    @Value("${app.environment:development}")
+    private String environment;
+
+    @Value("${server.port:8080}")
+    private String serverPort;
+
     /**
      * Show tenant registration page
      */
     @GetMapping("/register")
-    public String showRegistrationPage() {
+    public String showRegistrationPage(Model model) {
+        model.addAttribute("appDomain", appDomain);
+        model.addAttribute("environment", environment);
+        model.addAttribute("previewDomain", getPreviewDomain());
         return "tenant-register";
     }
 
@@ -64,12 +77,23 @@ public class TenantController {
                 return response;
             }
 
-            // Reserved subdomains
-            if (subdomain.equals("www") || subdomain.equals("admin") || subdomain.equals("api") ||
-                    subdomain.equals("mail") || subdomain.equals("ftp") || subdomain.equals("localhost")) {
+            // Check subdomain length
+            if (subdomain.length() < 3 || subdomain.length() > 63) {
                 response.put("success", false);
-                response.put("message", "This subdomain is reserved");
+                response.put("message", "Subdomain must be between 3 and 63 characters");
                 return response;
+            }
+
+            // Reserved subdomains
+            String[] reservedSubdomains = {"www", "admin", "api", "mail", "ftp", "localhost",
+                    "smtp", "pop", "imap", "webmail", "cpanel", "whm",
+                    "staging", "dev", "test", "demo", "app", "portal"};
+            for (String reserved : reservedSubdomains) {
+                if (subdomain.equals(reserved)) {
+                    response.put("success", false);
+                    response.put("message", "This subdomain is reserved");
+                    return response;
+                }
             }
 
             // Check if subdomain already exists
@@ -118,10 +142,13 @@ public class TenantController {
 
             System.out.println("✅ New tenant registered: " + subdomain);
 
+            // Build login URL based on environment
+            String loginUrl = buildTenantUrl(subdomain, "/login");
+
             response.put("success", true);
             response.put("message", "Tenant registered successfully!");
             response.put("subdomain", subdomain);
-            response.put("loginUrl", "http://" + subdomain + ".localhost:8080/login");
+            response.put("loginUrl", loginUrl);
 
             return response;
 
@@ -144,7 +171,47 @@ public class TenantController {
 
         boolean available = !tenantRepository.existsBySubdomain(subdomain);
         response.put("available", available);
+        response.put("previewUrl", buildTenantUrl(subdomain, ""));
 
         return response;
+    }
+
+    /**
+     * Build tenant URL based on environment
+     * Development: http://subdomain.localhost:8080/path
+     * Production: https://subdomain.yourdomain.com/path
+     */
+    private String buildTenantUrl(String subdomain, String path) {
+        StringBuilder url = new StringBuilder();
+
+        if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
+            // Development mode
+            url.append("http://");
+            url.append(subdomain);
+            url.append(".localhost");
+            if (!"80".equals(serverPort) && !"443".equals(serverPort)) {
+                url.append(":").append(serverPort);
+            }
+        } else {
+            // Production mode - use HTTPS
+            url.append("https://");
+            url.append(subdomain);
+            url.append(".");
+            url.append(appDomain);
+        }
+
+        url.append(path);
+        return url.toString();
+    }
+
+    /**
+     * Get preview domain for registration page
+     */
+    private String getPreviewDomain() {
+        if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
+            return "localhost" + (!"80".equals(serverPort) && !"443".equals(serverPort) ? ":" + serverPort : "");
+        } else {
+            return appDomain;
+        }
     }
 }
