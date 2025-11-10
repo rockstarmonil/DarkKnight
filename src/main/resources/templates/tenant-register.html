@@ -135,6 +135,18 @@
             color: #00ff88;
             border-color: #00ff88;
         }
+
+        .alert-success {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+
+        .alert-danger {
+            background: rgba(255, 0, 0, 0.1);
+            color: #ff5555;
+            border: 1px solid #ff5555;
+        }
     </style>
 </head>
 <body>
@@ -210,12 +222,16 @@
     const registerForm = document.getElementById('registerForm');
     const alertContainer = document.getElementById('alertContainer');
 
+    console.log('🌍 Environment:', environment);
+    console.log('🔗 Preview domain:', previewDomain);
+
     // Update preview and check availability
     let checkTimeout;
     subdomainInput.addEventListener('input', function() {
         let subdomain = this.value.toLowerCase().trim();
 
-        // Force lowercase
+        // Force lowercase and remove invalid characters
+        subdomain = subdomain.replace(/[^a-z0-9-]/g, '');
         if (this.value !== subdomain) {
             this.value = subdomain;
         }
@@ -275,6 +291,8 @@
             adminPassword: document.getElementById('adminPassword').value
         };
 
+        console.log('📤 Submitting tenant registration:', data.subdomain, data.companyName);
+
         fetch('/tenant/register', {
             method: 'POST',
             headers: {
@@ -284,12 +302,20 @@
         })
             .then(res => res.json())
             .then(response => {
+                console.log('📥 Response:', response);
+
                 if (response.success) {
                     showAlert('success',
                         '<strong><i class="bi bi-check-circle-fill me-2"></i>Success!</strong><br>' +
                         'Tenant created successfully! Redirecting to login...<br>' +
-                        '<small>Your URL: ' + response.loginUrl + '</small>'
+                        '<small class="d-block mt-2">Your Login URL:<br>' +
+                        '<strong>' + response.loginUrl + '</strong></small>'
                     );
+
+                    console.log('✅ Tenant created successfully');
+                    console.log('🔗 Login URL:', response.loginUrl);
+
+                    // Redirect after 3 seconds
                     setTimeout(() => {
                         window.location.href = response.loginUrl;
                     }, 3000);
@@ -300,8 +326,8 @@
                 }
             })
             .catch(err => {
+                console.error('❌ Registration error:', err);
                 showAlert('danger', '<i class="bi bi-exclamation-triangle me-2"></i>Registration failed. Please try again.');
-                console.error('Error:', err);
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             });

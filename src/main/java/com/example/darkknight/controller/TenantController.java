@@ -35,26 +35,34 @@ public class TenantController {
     @Value("${app.environment:development}")
     private String environment;
 
-    @Value("${server.port:8080}")
-    private String serverPort;
+    @Value("${app.protocol:http}")
+    private String protocol;
+
+    @Value("${app.port:8080}")
+    private String port;
 
     /**
      * Show tenant registration page
      */
     @GetMapping("/register")
-    public String showRegistrationPage(Model model) {
-        model.addAttribute("appDomain", appDomain);
+    public String showRegistrationPage(Model model, HttpServletRequest request) {
         model.addAttribute("environment", environment);
-        model.addAttribute("previewDomain", getPreviewDomain());
+        model.addAttribute("previewDomain", getPreviewDomain(request));
+
+        System.out.println("📝 Tenant registration page requested");
+        System.out.println("🌍 Environment: " + environment);
+        System.out.println("🔗 Preview domain: " + getPreviewDomain(request));
+
         return "tenant-register";
     }
 
     /**
-     * Handle tenant self-registration
+     * Register a new tenant
      */
     @PostMapping("/register")
     @ResponseBody
-    public Map<String, Object> registerTenant(@RequestBody Map<String, String> request) {
+    public Map<String, Object> registerTenant(@RequestBody Map<String, String> request,
+                                              HttpServletRequest httpRequest) {
         Map<String, Object> response = new HashMap<>();
 
         try {
@@ -63,101 +71,81 @@ public class TenantController {
             String adminEmail = request.get("adminEmail").trim();
             String adminPassword = request.get("adminPassword");
 
-            // Validation
-            if (subdomain.isEmpty() || companyName.isEmpty() || adminEmail.isEmpty() || adminPassword.isEmpty()) {
-                response.put("success", false);
-                response.put("message", "All fields are required");
-                return response;
-            }
+            System.out.println("🏢 Tenant registration attempt:");
+            System.out.println("   Company: " + companyName);
+            System.out.println("   Subdomain: " + subdomain);
+            System.out.println("   Admin Email: " + adminEmail);
 
-            // Check subdomain format (alphanumeric and hyphens only)
-            if (!subdomain.matches("^[a-z0-9-]+$")) {
+            // Validate subdomain format
+            if (!subdomain.matches("^[a-z0-9-]{3,63}$")) {
                 response.put("success", false);
-                response.put("message", "Subdomain can only contain lowercase letters, numbers, and hyphens");
+                response.put("message", "Invalid subdomain format. Use only lowercase letters, numbers, and hyphens (3-63 chars)");
                 return response;
-            }
-
-            // Check subdomain length
-            if (subdomain.length() < 3 || subdomain.length() > 63) {
-                response.put("success", false);
-                response.put("message", "Subdomain must be between 3 and 63 characters");
-                return response;
-            }
-
-            // Reserved subdomains
-            String[] reservedSubdomains = {"www", "admin", "api", "mail", "ftp", "localhost",
-                    "smtp", "pop", "imap", "webmail", "cpanel", "whm",
-                    "staging", "dev", "test", "demo", "app", "portal"};
-            for (String reserved : reservedSubdomains) {
-                if (subdomain.equals(reserved)) {
-                    response.put("success", false);
-                    response.put("message", "This subdomain is reserved");
-                    return response;
-                }
             }
 
             // Check if subdomain already exists
-            if (tenantRepository.existsBySubdomain(subdomain)) {
+            if (tenantRepository.findBySubdomain(subdomain).isPresent()) {
                 response.put("success", false);
-                response.put("message", "Subdomain already taken");
+                response.put("message", "Subdomain already exists. Please choose another one.");
                 return response;
             }
 
-            // Check if email already exists
-            if (userRepository.existsByEmail(adminEmail)) {
+            // Check if admin email already exists
+            if (userRepository.findByEmail(adminEmail).isPresent()) {
                 response.put("success", false);
-                response.put("message", "Email already registered");
+                response.put("message", "Email already registered. Please use a different email.");
                 return response;
             }
 
-            // Create tenant WITHOUT owner first
+            // Create tenant
             Tenant tenant = new Tenant();
             tenant.setName(companyName);
             tenant.setSubdomain(subdomain);
-            tenant.setStatus("ACTIVE");
-            tenant.setMaxUsers(20);
+            tenant.setStatus("active");
+            tenant.setMaxUsers(50); // Default max users
             tenant.setCreatedAt(LocalDateTime.now());
             tenant.setUpdatedAt(LocalDateTime.now());
 
             // Save tenant first to get ID
             tenant = tenantRepository.save(tenant);
+            System.out.println("✅ Tenant created: " + tenant.getName() + " (ID: " + tenant.getId() + ")");
 
-            // Create tenant admin user
+            // Create admin user
             User admin = new User();
             admin.setEmail(adminEmail);
             admin.setUsername(adminEmail);
             admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setRole("ROLE_ADMIN");
             admin.setEnabled(true);
+            admin.setTenant(tenant);
             admin.setCreatedAt(LocalDateTime.now());
             admin.setUpdatedAt(LocalDateTime.now());
-            admin.setTenant(tenant);
 
-            // Save admin user
-            admin = userRepository.save(admin);
+            userRepository.save(admin);
+            System.out.println("✅ Admin user created: " + admin.getEmail());
 
-            // Update tenant with owner
+            // Update tenant with owner reference
             tenant.setOwner(admin);
             tenantRepository.save(tenant);
 
-            System.out.println("✅ New tenant registered: " + subdomain);
-
             // Build login URL based on environment
-            String loginUrl = buildTenantUrl(subdomain, "/login");
+            String loginUrl = buildLoginUrl(subdomain, httpRequest);
+            System.out.println("🔗 Login URL: " + loginUrl);
 
             response.put("success", true);
-            response.put("message", "Tenant registered successfully!");
+            response.put("message", "Tenant created successfully!");
+            response.put("tenantId", tenant.getId());
             response.put("subdomain", subdomain);
             response.put("loginUrl", loginUrl);
 
-            return response;
-
         } catch (Exception e) {
+            System.err.println("❌ Tenant registration failed: " + e.getMessage());
             e.printStackTrace();
             response.put("success", false);
             response.put("message", "Registration failed: " + e.getMessage());
-            return response;
         }
+
+        return response;
     }
 
     /**
@@ -165,53 +153,71 @@ public class TenantController {
      */
     @GetMapping("/check-subdomain")
     @ResponseBody
-    public Map<String, Object> checkSubdomain(@RequestParam String subdomain) {
-        Map<String, Object> response = new HashMap<>();
+    public Map<String, Boolean> checkSubdomainAvailability(@RequestParam String subdomain) {
+        Map<String, Boolean> response = new HashMap<>();
+
         subdomain = subdomain.toLowerCase().trim();
 
-        boolean available = !tenantRepository.existsBySubdomain(subdomain);
+        // Check format
+        if (!subdomain.matches("^[a-z0-9-]{3,63}$")) {
+            response.put("available", false);
+            return response;
+        }
+
+        // Check if exists in database
+        boolean available = tenantRepository.findBySubdomain(subdomain).isEmpty();
         response.put("available", available);
-        response.put("previewUrl", buildTenantUrl(subdomain, ""));
+
+        System.out.println("🔍 Subdomain check: " + subdomain + " -> " + (available ? "Available" : "Taken"));
 
         return response;
     }
 
     /**
-     * Build tenant URL based on environment
-     * Development: http://subdomain.localhost:8080/path
-     * Production: https://subdomain.yourdomain.com/path
+     * Build the correct login URL based on environment
      */
-    private String buildTenantUrl(String subdomain, String path) {
-        StringBuilder url = new StringBuilder();
-
+    private String buildLoginUrl(String subdomain, HttpServletRequest request) {
+        // Development (localhost)
         if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
-            // Development mode
-            url.append("http://");
-            url.append(subdomain);
-            url.append(".localhost");
-            if (!"80".equals(serverPort) && !"443".equals(serverPort)) {
-                url.append(":").append(serverPort);
-            }
-        } else {
-            // Production mode - use HTTPS
-            url.append("https://");
-            url.append(subdomain);
-            url.append(".");
-            url.append(appDomain);
+            return protocol + "://" + subdomain + ".localhost:" + port + "/login";
         }
 
-        url.append(path);
-        return url.toString();
+        // Production
+        // For production, use the actual domain from the request or configured domain
+        String scheme = request.getScheme(); // http or https
+        String domain = appDomain;
+
+        // If using standard ports (80 for http, 443 for https), don't include port
+        boolean isStandardPort =
+                ("http".equals(scheme) && "80".equals(port)) ||
+                        ("https".equals(scheme) && "443".equals(port));
+
+        if (isStandardPort) {
+            return scheme + "://" + subdomain + "." + domain + "/login";
+        } else {
+            return scheme + "://" + subdomain + "." + domain + ":" + port + "/login";
+        }
     }
 
     /**
-     * Get preview domain for registration page
+     * Get preview domain for the registration form
      */
-    private String getPreviewDomain() {
+    private String getPreviewDomain(HttpServletRequest request) {
+        // Development
         if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
-            return "localhost" + (!"80".equals(serverPort) && !"443".equals(serverPort) ? ":" + serverPort : "");
-        } else {
+            return "localhost:" + port;
+        }
+
+        // Production
+        String scheme = request.getScheme();
+        boolean isStandardPort =
+                ("http".equals(scheme) && "80".equals(port)) ||
+                        ("https".equals(scheme) && "443".equals(port));
+
+        if (isStandardPort) {
             return appDomain;
+        } else {
+            return appDomain + ":" + port;
         }
     }
 }
