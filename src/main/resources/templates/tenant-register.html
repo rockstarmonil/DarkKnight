@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Your Tenant</title>
+    <title>Create Your Tenant - DarkKnight</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -13,25 +13,34 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
         .register-card {
             background: rgba(26, 26, 26, 0.95);
             border-radius: 20px;
             padding: 3rem;
-            max-width: 500px;
+            max-width: 550px;
             width: 100%;
             border: 1px solid rgba(157, 0, 255, 0.3);
             box-shadow: 0 20px 60px rgba(157, 0, 255, 0.2);
+            position: relative;
         }
 
         .brand-title {
             background: linear-gradient(135deg, #9d00ff, #ff00ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
             font-size: 2rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
         }
 
         .form-control {
@@ -40,6 +49,7 @@
             color: #fff;
             padding: 0.75rem 1rem;
             border-radius: 10px;
+            transition: all 0.3s ease;
         }
 
         .form-control:focus {
@@ -50,29 +60,37 @@
         }
 
         .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.4);
         }
 
         .form-label {
             color: #ccc;
             font-weight: 500;
             margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
 
         .btn-create {
             background: linear-gradient(135deg, #9d00ff, #ff00ff);
             border: none;
             color: #fff;
-            padding: 0.75rem 2rem;
+            padding: 0.85rem 2rem;
             font-weight: 600;
             border-radius: 10px;
             width: 100%;
             transition: all 0.3s;
+            font-size: 1rem;
         }
 
-        .btn-create:hover {
+        .btn-create:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(157, 0, 255, 0.4);
+            box-shadow: 0 10px 30px rgba(157, 0, 255, 0.5);
+            color: #fff;
+        }
+
+        .btn-create:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         .subdomain-preview {
@@ -80,15 +98,22 @@
             border: 1px solid rgba(157, 0, 255, 0.3);
             border-radius: 10px;
             padding: 1rem;
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
             color: #9d00ff;
-            font-family: monospace;
+            font-family: 'Courier New', monospace;
             word-break: break-all;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .subdomain-preview:hover {
+            background: rgba(157, 0, 255, 0.15);
         }
 
         .availability-check {
             font-size: 0.875rem;
-            margin-top: 0.25rem;
+            margin-top: 0.5rem;
+            font-weight: 500;
         }
 
         .available {
@@ -99,41 +124,14 @@
             color: #ff4444;
         }
 
+        .checking {
+            color: #00d4ff;
+        }
+
         .alert {
             border-radius: 10px;
             border: none;
-        }
-
-        .text-muted {
-            color: rgba(255, 255, 255, 0.6) !important;
-        }
-
-        .login-link {
-            color: #9d00ff;
-            text-decoration: none;
-        }
-
-        .login-link:hover {
-            color: #ff00ff;
-        }
-
-        .env-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: rgba(0, 212, 255, 0.2);
-            color: #00d4ff;
-            border: 1px solid #00d4ff;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .env-badge.production {
-            background: rgba(0, 255, 136, 0.2);
-            color: #00ff88;
-            border-color: #00ff88;
+            margin-bottom: 1.5rem;
         }
 
         .alert-success {
@@ -147,38 +145,142 @@
             color: #ff5555;
             border: 1px solid #ff5555;
         }
+
+        .text-muted {
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+
+        .login-link {
+            color: #9d00ff;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .login-link:hover {
+            color: #ff00ff;
+            text-decoration: underline;
+        }
+
+        .env-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            border: 1px solid #00d4ff;
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .env-badge.production {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border-color: #00ff88;
+        }
+
+        .icon-header {
+            color: #9d00ff;
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-help {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.25rem;
+        }
+
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+            border-width: 0.15em;
+        }
+
+        /* Input validation states */
+        .form-control.is-valid {
+            border-color: #00ff88;
+        }
+
+        .form-control.is-invalid {
+            border-color: #ff4444;
+        }
+
+        /* Smooth animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .register-card {
+            animation: fadeIn 0.5s ease-out;
+        }
     </style>
 </head>
 <body>
-<div class="register-card position-relative">
+<div class="register-card">
     <!-- Environment Badge -->
     <div class="env-badge" th:classappend="${environment == 'production'} ? 'production' : ''"
-         th:text="${environment == 'production'} ? 'PRODUCTION' : 'DEVELOPMENT'">
-        DEVELOPMENT
+         th:text="${environment == 'production'} ? 'Production' : 'Development'">
+        Development
     </div>
 
+    <!-- Header -->
     <div class="text-center mb-4">
-        <i class="bi bi-building text-white" style="font-size: 3rem;"></i>
+        <i class="bi bi-building icon-header"></i>
         <h1 class="brand-title">Create Your Tenant</h1>
-        <p class="text-muted">Start your multi-tenant journey</p>
+        <p class="subtitle">Start your multi-tenant journey with DarkKnight</p>
     </div>
 
+    <!-- Alert Container -->
     <div id="alertContainer"></div>
 
+    <!-- Registration Form -->
     <form id="registerForm">
         <!-- Company Name -->
         <div class="mb-3">
-            <label class="form-label">Company Name</label>
-            <input type="text" class="form-control" id="companyName" placeholder="Acme Corporation" required>
+            <label class="form-label">
+                <i class="bi bi-briefcase me-1"></i>Company Name
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="companyName"
+                   placeholder="Acme Corporation"
+                   required
+                   autocomplete="organization">
+            <div class="form-help">The name of your organization</div>
         </div>
 
         <!-- Subdomain -->
         <div class="mb-3">
-            <label class="form-label">Subdomain</label>
-            <input type="text" class="form-control" id="subdomain" placeholder="acme" required
-                   pattern="[a-z0-9-]+" minlength="3" maxlength="63">
-            <small class="text-muted">Only lowercase letters, numbers, and hyphens (3-63 characters)</small>
+            <label class="form-label">
+                <i class="bi bi-link-45deg me-1"></i>Subdomain
+            </label>
+            <input type="text"
+                   class="form-control"
+                   id="subdomain"
+                   placeholder="acme"
+                   required
+                   pattern="[a-z0-9-]+"
+                   minlength="3"
+                   maxlength="63"
+                   autocomplete="off">
+            <div class="form-help">Only lowercase letters, numbers, and hyphens (3-63 characters)</div>
+
+            <!-- Availability Check -->
             <div class="availability-check" id="availabilityCheck"></div>
+
+            <!-- Subdomain Preview -->
             <div class="subdomain-preview" id="subdomainPreview">
                 <i class="bi bi-globe me-2"></i>
                 <span id="previewUrl" th:text="'yourcompany.' + ${previewDomain}">yourcompany.localhost:8080</span>
@@ -187,22 +289,40 @@
 
         <!-- Admin Email -->
         <div class="mb-3">
-            <label class="form-label">Admin Email</label>
-            <input type="email" class="form-control" id="adminEmail" placeholder="admin@acme.com" required>
+            <label class="form-label">
+                <i class="bi bi-envelope me-1"></i>Admin Email
+            </label>
+            <input type="email"
+                   class="form-control"
+                   id="adminEmail"
+                   placeholder="admin@acme.com"
+                   required
+                   autocomplete="email">
+            <div class="form-help">This will be your login email</div>
         </div>
 
         <!-- Admin Password -->
         <div class="mb-3">
-            <label class="form-label">Admin Password</label>
-            <input type="password" class="form-control" id="adminPassword" placeholder="••••••••" required minlength="6">
-            <small class="text-muted">Minimum 6 characters</small>
+            <label class="form-label">
+                <i class="bi bi-shield-lock me-1"></i>Admin Password
+            </label>
+            <input type="password"
+                   class="form-control"
+                   id="adminPassword"
+                   placeholder="••••••••"
+                   required
+                   minlength="6"
+                   autocomplete="new-password">
+            <div class="form-help">Minimum 6 characters</div>
         </div>
 
-        <button type="submit" class="btn btn-create mt-3">
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-create mt-4" id="submitBtn">
             <i class="bi bi-rocket-takeoff me-2"></i>Create Tenant
         </button>
     </form>
 
+    <!-- Login Link -->
     <div class="text-center mt-4">
         <small class="text-muted">
             Already have an account? <a href="/login" class="login-link">Login here</a>
@@ -212,66 +332,93 @@
 
 <script th:inline="javascript">
     /*<![CDATA[*/
+    // Get values from Thymeleaf
     const previewDomain = /*[[${previewDomain}]]*/ 'localhost:8080';
     const environment = /*[[${environment}]]*/ 'development';
     /*]]>*/
 
+    console.log('🌍 Environment:', environment);
+    console.log('🔗 Preview domain:', previewDomain);
+
+    // DOM Elements
     const subdomainInput = document.getElementById('subdomain');
     const previewUrl = document.getElementById('previewUrl');
     const availabilityCheck = document.getElementById('availabilityCheck');
     const registerForm = document.getElementById('registerForm');
     const alertContainer = document.getElementById('alertContainer');
+    const submitBtn = document.getElementById('submitBtn');
 
-    console.log('🌍 Environment:', environment);
-    console.log('🔗 Preview domain:', previewDomain);
-
-    // Update preview and check availability
     let checkTimeout;
+    let isSubdomainAvailable = false;
+
+    // Subdomain input handler
     subdomainInput.addEventListener('input', function() {
         let subdomain = this.value.toLowerCase().trim();
 
         // Force lowercase and remove invalid characters
         subdomain = subdomain.replace(/[^a-z0-9-]/g, '');
+
+        // Update input if cleaned
         if (this.value !== subdomain) {
             this.value = subdomain;
         }
 
         // Update preview
-        if (subdomain) {
+        updatePreview(subdomain);
+
+        // Clear previous checks
+        clearTimeout(checkTimeout);
+        availabilityCheck.innerHTML = '';
+        isSubdomainAvailable = false;
+
+        // Check availability after user stops typing
+        if (subdomain.length >= 3) {
+            checkTimeout = setTimeout(() => checkAvailability(subdomain), 500);
+        } else if (subdomain.length > 0 && subdomain.length < 3) {
+            availabilityCheck.innerHTML = '<i class="bi bi-info-circle me-1"></i>Minimum 3 characters required';
+            availabilityCheck.className = 'availability-check text-muted';
+        }
+    });
+
+    // Update subdomain preview
+    function updatePreview(subdomain) {
+        if (subdomain && subdomain.length > 0) {
             previewUrl.textContent = subdomain + '.' + previewDomain;
         } else {
             previewUrl.textContent = 'yourcompany.' + previewDomain;
         }
-
-        // Debounce availability check
-        clearTimeout(checkTimeout);
-        availabilityCheck.innerHTML = '';
-
-        if (subdomain.length >= 3) {
-            checkTimeout = setTimeout(() => checkAvailability(subdomain), 500);
-        }
-    });
+    }
 
     // Check subdomain availability
     function checkAvailability(subdomain) {
-        availabilityCheck.innerHTML = '<i class="bi bi-hourglass me-1"></i>Checking...';
-        availabilityCheck.className = 'availability-check';
+        availabilityCheck.innerHTML = '<i class="bi bi-hourglass me-1"></i>Checking availability...';
+        availabilityCheck.className = 'availability-check checking';
 
         fetch('/tenant/check-subdomain?subdomain=' + encodeURIComponent(subdomain))
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
             .then(data => {
                 if (data.available) {
-                    availabilityCheck.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Available';
+                    availabilityCheck.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Subdomain is available!';
                     availabilityCheck.className = 'availability-check available';
+                    subdomainInput.classList.remove('is-invalid');
+                    subdomainInput.classList.add('is-valid');
+                    isSubdomainAvailable = true;
                 } else {
-                    availabilityCheck.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Already taken';
+                    availabilityCheck.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Subdomain is already taken';
                     availabilityCheck.className = 'availability-check unavailable';
+                    subdomainInput.classList.remove('is-valid');
+                    subdomainInput.classList.add('is-invalid');
+                    isSubdomainAvailable = false;
                 }
             })
             .catch(err => {
-                console.error('Error checking availability:', err);
-                availabilityCheck.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Check failed';
+                console.error('❌ Error checking availability:', err);
+                availabilityCheck.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Could not check availability';
                 availabilityCheck.className = 'availability-check unavailable';
+                isSubdomainAvailable = false;
             });
     }
 
@@ -279,11 +426,18 @@
     registerForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const submitBtn = e.target.querySelector('.btn-create');
+        // Validate subdomain availability
+        if (!isSubdomainAvailable) {
+            showAlert('danger', '<i class="bi bi-exclamation-triangle me-2"></i>Please choose an available subdomain');
+            return;
+        }
+
+        // Disable button and show loading
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating your tenant...';
         submitBtn.disabled = true;
 
+        // Prepare data
         const data = {
             subdomain: subdomainInput.value.toLowerCase().trim(),
             companyName: document.getElementById('companyName').value.trim(),
@@ -293,6 +447,7 @@
 
         console.log('📤 Submitting tenant registration:', data.subdomain, data.companyName);
 
+        // Submit registration
         fetch('/tenant/register', {
             method: 'POST',
             headers: {
@@ -300,16 +455,19 @@
             },
             body: JSON.stringify(data)
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
             .then(response => {
                 console.log('📥 Response:', response);
 
                 if (response.success) {
                     showAlert('success',
                         '<strong><i class="bi bi-check-circle-fill me-2"></i>Success!</strong><br>' +
-                        'Tenant created successfully! Redirecting to login...<br>' +
-                        '<small class="d-block mt-2">Your Login URL:<br>' +
-                        '<strong>' + response.loginUrl + '</strong></small>'
+                        'Tenant created successfully! Redirecting to your login page...<br>' +
+                        '<small class="d-block mt-2" style="opacity: 0.9;">Your Login URL:<br>' +
+                        '<strong style="word-break: break-all;">' + response.loginUrl + '</strong></small>'
                     );
 
                     console.log('✅ Tenant created successfully');
@@ -320,26 +478,33 @@
                         window.location.href = response.loginUrl;
                     }, 3000);
                 } else {
-                    showAlert('danger', '<i class="bi bi-x-circle-fill me-2"></i>' + response.message);
+                    showAlert('danger', '<i class="bi bi-x-circle-fill me-2"></i><strong>Error:</strong> ' + response.message);
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
                 }
             })
             .catch(err => {
                 console.error('❌ Registration error:', err);
-                showAlert('danger', '<i class="bi bi-exclamation-triangle me-2"></i>Registration failed. Please try again.');
+                showAlert('danger',
+                    '<i class="bi bi-exclamation-triangle me-2"></i><strong>Error:</strong> ' +
+                    'Registration failed. Please check your connection and try again.'
+                );
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             });
     });
 
+    // Show alert message
     function showAlert(type, message) {
         alertContainer.innerHTML = `
             <div class="alert alert-${type} alert-dismissible fade show" role="alert">
                 ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
+
+        // Scroll to top to show alert
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 </script>
 
