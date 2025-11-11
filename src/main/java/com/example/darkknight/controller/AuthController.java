@@ -11,6 +11,7 @@ import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -39,6 +40,34 @@ public class AuthController {
     @Autowired
     private TenantSsoConfigService ssoConfigService;
 
+    @Value("${app.domain:localhost}")
+    private String appDomain;
+
+    @Value("${app.environment:development}")
+    private String environment;
+
+    @Value("${app.protocol:http}")
+    private String protocol;
+
+    @Value("${app.port:8080}")
+    private String port;
+
+    // ========================================
+    // LOGIN PAGE (GET)
+    // ========================================
+
+    @GetMapping("/login")
+    public String loginPage(Model model, HttpServletRequest request) {
+        Long tenantId = TenantContext.getTenantId();
+        String subdomain = TenantContext.getSubdomain();
+
+        System.out.println("🔐 Login page requested - Tenant ID: " + tenantId + ", Subdomain: " + subdomain);
+
+        addLoginPageAttributes(model, tenantId, subdomain, request);
+
+        return "login";
+    }
+
     // ========================================
     // LOGIN FORM SUBMISSION (POST)
     // ========================================
@@ -61,8 +90,9 @@ public class AuthController {
         if ("admin@system.com".equalsIgnoreCase(email) && "admin".equals(password)) {
             // Super admin cannot access tenant subdomains
             if (subdomain != null && !subdomain.isEmpty()) {
-                model.addAttribute("error", "Super admin cannot access tenant subdomains. Please use: http://localhost:8080/login");
-                addLoginPageAttributes(model, tenantId, subdomain);
+                model.addAttribute("error", "Super admin cannot access tenant subdomains. Please use: " +
+                        protocol + "://" + appDomain + (isStandardPort() ? "" : ":" + port) + "/login");
+                addLoginPageAttributes(model, tenantId, subdomain, request);
                 return "login";
             }
 
@@ -89,7 +119,7 @@ public class AuthController {
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             System.out.println("❌ Invalid credentials for email: " + email);
             model.addAttribute("error", "Invalid email or password!");
-            addLoginPageAttributes(model, tenantId, subdomain);
+            addLoginPageAttributes(model, tenantId, subdomain, request);
             return "login";
         }
 
@@ -109,13 +139,16 @@ public class AuthController {
 
             // Check if user is accessing correct tenant subdomain
             if (subdomain == null || !userTenantSubdomain.equalsIgnoreCase(subdomain)) {
+                String correctUrl = protocol + "://" + userTenantSubdomain + "." + appDomain +
+                        (isStandardPort() ? "" : ":" + port) + "/login";
+
                 String errorMsg = subdomain == null
-                        ? "Please login at: http://" + userTenantSubdomain + ".localhost:8080/login"
-                        : "You cannot login to this tenant. Please use: http://" + userTenantSubdomain + ".localhost:8080/login";
+                        ? "Please login at: " + correctUrl
+                        : "You cannot login to this tenant. Please use: " + correctUrl;
 
                 System.out.println("❌ Tenant mismatch - User tenant: " + userTenantSubdomain + ", Current subdomain: " + subdomain);
                 model.addAttribute("error", errorMsg);
-                addLoginPageAttributes(model, tenantId, subdomain);
+                addLoginPageAttributes(model, tenantId, subdomain, request);
                 return "login";
             }
 
@@ -123,7 +156,7 @@ public class AuthController {
             if (!userTenant.isActive()) {
                 System.out.println("❌ Tenant is suspended: " + userTenant.getName());
                 model.addAttribute("error", "This tenant is currently suspended. Please contact support.");
-                addLoginPageAttributes(model, tenantId, subdomain);
+                addLoginPageAttributes(model, tenantId, subdomain, request);
                 return "login";
             }
 
@@ -133,7 +166,7 @@ public class AuthController {
             if (subdomain != null) {
                 System.out.println("❌ User has no tenant but accessing subdomain: " + subdomain);
                 model.addAttribute("error", "This user does not belong to any tenant.");
-                addLoginPageAttributes(model, tenantId, subdomain);
+                addLoginPageAttributes(model, tenantId, subdomain, request);
                 return "login";
             }
         }
@@ -144,7 +177,7 @@ public class AuthController {
         if (!user.isEnabled()) {
             System.out.println("❌ User account is disabled: " + user.getEmail());
             model.addAttribute("error", "Your account has been disabled. Please contact your administrator.");
-            addLoginPageAttributes(model, tenantId, subdomain);
+            addLoginPageAttributes(model, tenantId, subdomain, request);
             return "login";
         }
 
@@ -355,12 +388,13 @@ public class AuthController {
     /**
      * Add required attributes for login page
      */
-    private void addLoginPageAttributes(Model model, Long tenantId, String subdomain) {
+    private void addLoginPageAttributes(Model model, Long tenantId, String subdomain, HttpServletRequest request) {
         String tenantName = "Application";
         boolean samlEnabled = false;
         boolean oauthEnabled = false;
         boolean jwtEnabled = false;
         TenantSsoConfig ssoConfig = null;
+        String currentDomain = getCurrentDomain();
 
         if (tenantId != null) {
             Optional<Tenant> tenantOpt = tenantRepository.findById(tenantId);
@@ -380,6 +414,7 @@ public class AuthController {
 
         model.addAttribute("tenantName", tenantName);
         model.addAttribute("subdomain", subdomain);
+        model.addAttribute("currentDomain", currentDomain);
         model.addAttribute("samlEnabled", samlEnabled);
         model.addAttribute("oauthEnabled", oauthEnabled);
         model.addAttribute("jwtEnabled", jwtEnabled);
@@ -388,5 +423,24 @@ public class AuthController {
         if (ssoConfig != null) {
             model.addAttribute("ssoConfig", ssoConfig);
         }
+    }
+
+    /**
+     * Get current domain for display
+     */
+    private String getCurrentDomain() {
+        if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
+            return "localhost:" + port;
+        }
+
+        return appDomain + (isStandardPort() ? "" : ":" + port);
+    }
+
+    /**
+     * Check if using standard HTTP/HTTPS port
+     */
+    private boolean isStandardPort() {
+        return ("http".equals(protocol) && "80".equals(port)) ||
+                ("https".equals(protocol) && "443".equals(port));
     }
 }

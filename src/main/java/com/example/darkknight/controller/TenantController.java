@@ -52,6 +52,9 @@ public class TenantController {
         System.out.println("📝 Tenant registration page requested");
         System.out.println("🌍 Environment: " + environment);
         System.out.println("🔗 Preview domain: " + getPreviewDomain(request));
+        System.out.println("🌐 App domain: " + appDomain);
+        System.out.println("🔒 Protocol: " + protocol);
+        System.out.println("🚪 Port: " + port);
 
         return "tenant-register";
     }
@@ -75,6 +78,8 @@ public class TenantController {
             System.out.println("   Company: " + companyName);
             System.out.println("   Subdomain: " + subdomain);
             System.out.println("   Admin Email: " + adminEmail);
+            System.out.println("   Environment: " + environment);
+            System.out.println("   Domain: " + appDomain);
 
             // Validate subdomain format
             if (!subdomain.matches("^[a-z0-9-]{3,63}$")) {
@@ -130,7 +135,7 @@ public class TenantController {
 
             // Build login URL based on environment
             String loginUrl = buildLoginUrl(subdomain, httpRequest);
-            System.out.println("🔗 Login URL: " + loginUrl);
+            System.out.println("🔗 Generated Login URL: " + loginUrl);
 
             response.put("success", true);
             response.put("message", "Tenant created successfully!");
@@ -177,47 +182,65 @@ public class TenantController {
      * Build the correct login URL based on environment
      */
     private String buildLoginUrl(String subdomain, HttpServletRequest request) {
+        String loginUrl;
+
         // Development (localhost)
         if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
-            return protocol + "://" + subdomain + ".localhost:" + port + "/login";
+            loginUrl = protocol + "://" + subdomain + ".localhost:" + port + "/login";
         }
-
         // Production
-        // For production, use the actual domain from the request or configured domain
-        String scheme = request.getScheme(); // http or https
-        String domain = appDomain;
+        else {
+            // Use configured protocol and domain
+            String baseUrl = protocol + "://" + subdomain + "." + appDomain;
 
-        // If using standard ports (80 for http, 443 for https), don't include port
-        boolean isStandardPort =
-                ("http".equals(scheme) && "80".equals(port)) ||
-                        ("https".equals(scheme) && "443".equals(port));
+            // Check if we need to include port
+            boolean isStandardPort =
+                    ("http".equals(protocol) && "80".equals(port)) ||
+                            ("https".equals(protocol) && "443".equals(port));
 
-        if (isStandardPort) {
-            return scheme + "://" + subdomain + "." + domain + "/login";
-        } else {
-            return scheme + "://" + subdomain + "." + domain + ":" + port + "/login";
+            if (isStandardPort) {
+                loginUrl = baseUrl + "/login";
+            } else {
+                loginUrl = baseUrl + ":" + port + "/login";
+            }
         }
+
+        System.out.println("🔧 Building login URL:");
+        System.out.println("   - Environment: " + environment);
+        System.out.println("   - Protocol: " + protocol);
+        System.out.println("   - Domain: " + appDomain);
+        System.out.println("   - Port: " + port);
+        System.out.println("   - Subdomain: " + subdomain);
+        System.out.println("   - Result: " + loginUrl);
+
+        return loginUrl;
     }
 
     /**
      * Get preview domain for the registration form
      */
     private String getPreviewDomain(HttpServletRequest request) {
+        String previewDomain;
+
         // Development
         if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
-            return "localhost:" + port;
+            previewDomain = "localhost:" + port;
         }
-
         // Production
-        String scheme = request.getScheme();
-        boolean isStandardPort =
-                ("http".equals(scheme) && "80".equals(port)) ||
-                        ("https".equals(scheme) && "443".equals(port));
+        else {
+            // Check if we need to include port
+            boolean isStandardPort =
+                    ("http".equals(protocol) && "80".equals(port)) ||
+                            ("https".equals(protocol) && "443".equals(port));
 
-        if (isStandardPort) {
-            return appDomain;
-        } else {
-            return appDomain + ":" + port;
+            if (isStandardPort) {
+                previewDomain = appDomain;
+            } else {
+                previewDomain = appDomain + ":" + port;
+            }
         }
+
+        System.out.println("🔧 Preview domain generated: " + previewDomain);
+        return previewDomain;
     }
 }
