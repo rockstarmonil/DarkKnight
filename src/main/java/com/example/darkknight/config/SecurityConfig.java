@@ -17,17 +17,28 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        // Disable CSRF for OAuth/SAML/JWT callback endpoints
+                        .ignoringRequestMatchers(
+                                "/oauth/**",
+                                "/sso/**",
+                                "/jwt/**",
+                                "/login",
+                                "/api/**"
+                        )
+                )
                 .authorizeHttpRequests(auth -> auth
                         // ✅ Public Routes (Permit All)
                         .requestMatchers(
                                 "/jwt/**",              // JWT SSO endpoints
                                 "/sso/saml/**",         // SAML SSO endpoints
                                 "/sso/oauth/**",        // OAuth SSO endpoints
-                                "/oauth/**",            // OAuth callback
+                                "/oauth/**",            // OAuth callback and endpoints
+                                "/oauth/login",         // OAuth login initiation
+                                "/oauth/callback",      // OAuth callback
                                 "/tenant/register",     // Tenant registration
                                 "/tenant/check-subdomain", // Subdomain availability check
-                                "/login",               // ✅ Login page and POST handled by AuthController
+                                "/login",
                                 "/register",
                                 "/api/auth/register",
                                 "/css/**",
@@ -37,10 +48,14 @@ public class SecurityConfig {
                                 "/"
                         ).permitAll()
 
-                        // ✅ Protected Routes - Role-based access
+                        // ✅ Protected Routes - Super Admin
                         .requestMatchers("/main-admin/**").hasAuthority("ROLE_SUPER_ADMIN")
+
+                        // ✅ Protected Routes - Tenant Admin
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")
+
+                        // ✅ Protected Routes - Users
                         .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
 
                         // Dashboard redirects
@@ -50,12 +65,12 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // ✅ CRITICAL FIX: Disable default form login since we handle it manually
+                // ✅ Disable default form login (we handle login manually)
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .loginProcessingUrl("/spring-security-login") // ✅ Dummy URL - never used
+                        .loginProcessingUrl("/spring-security-login")
                         .permitAll()
-                        .disable() // ✅ Disable Spring Security's form login processing
+                        .disable()
                 )
 
                 // ✅ Logout setup
