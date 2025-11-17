@@ -23,7 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/admin")
+@RequestMapping("/admin/sso")
 @PreAuthorize("hasRole('ADMIN')")
 @Validated
 public class SsoAdminController {
@@ -36,7 +36,7 @@ public class SsoAdminController {
     /**
      * Save SAML configuration
      */
-    @PostMapping("/sso/save-saml")
+    @PostMapping("/save-saml")
     public ResponseEntity<ApiResponse> saveSamlConfig(@Valid @RequestBody SamlConfigDto dto) {
         try {
             Long tenantId = getTenantIdOrThrow();
@@ -84,7 +84,7 @@ public class SsoAdminController {
     /**
      * Save OAuth configuration
      */
-    @PostMapping("/sso/save-oauth")
+    @PostMapping("/save-oauth")
     public ResponseEntity<ApiResponse> saveOauthConfig(@Valid @RequestBody OAuthConfigDto dto) {
         try {
             Long tenantId = getTenantIdOrThrow();
@@ -142,7 +142,7 @@ public class SsoAdminController {
     /**
      * Save JWT configuration
      */
-    @PostMapping("/sso/save-jwt")
+    @PostMapping("/save-jwt")
     public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
         try {
             Long tenantId = getTenantIdOrThrow();
@@ -192,131 +192,9 @@ public class SsoAdminController {
     }
 
     /**
-     * Save Active Directory configuration
-     */
-    @PostMapping("/ad/save-config")
-    public ResponseEntity<ApiResponse> saveAdConfig(@RequestBody Map<String, String> request) {
-        try {
-            Long tenantId = getTenantIdOrThrow();
-
-            // Validate required field
-            validateRequiredField(request.get("adEnabled"), "adEnabled");
-
-            Boolean adEnabled = Boolean.parseBoolean(request.get("adEnabled"));
-
-            // If AD is enabled, validate all required fields
-            if (adEnabled) {
-                validateRequiredField(request.get("adServerUrl"), "adServerUrl");
-                validateRequiredField(request.get("adUsername"), "adUsername");
-                validateRequiredField(request.get("adPassword"), "adPassword");
-            }
-
-            // Convert to entity
-            TenantSsoConfig updates = new TenantSsoConfig();
-            updates.setAdEnabled(adEnabled);
-            updates.setAdServerUrl(sanitizeInput(request.get("adServerUrl")));
-            updates.setAdUsername(sanitizeInput(request.get("adUsername")));
-            updates.setAdPassword(request.get("adPassword")); // Don't sanitize passwords
-            updates.setAdBaseDn(sanitizeInput(request.get("adBaseDn")));
-            updates.setAdDomain(sanitizeInput(request.get("adDomain")));
-
-            TenantSsoConfig config = ssoConfigService.updateAdConfig(tenantId, updates);
-
-            // Validate configuration if enabled
-            if (adEnabled) {
-                if (!ssoConfigService.validateAdConfig(config)) {
-                    logger.warn("Invalid AD configuration for tenant ID: {}", tenantId);
-                    return ResponseEntity.badRequest()
-                            .body(new ApiResponse(false, "Invalid Active Directory configuration. Please check all required fields."));
-                }
-            }
-
-            logger.info("Active Directory config saved successfully for tenant ID: {}", tenantId);
-            return ResponseEntity.ok(new ApiResponse(true, "Active Directory configuration saved successfully", maskSensitiveData(config)));
-
-        } catch (IllegalArgumentException e) {
-            logger.warn("Invalid AD configuration parameters: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Failed to save AD configuration", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Failed to save Active Directory configuration. Please try again."));
-        }
-    }
-
-    /**
-     * Test Active Directory connection
-     */
-    @PostMapping("/ad/test-connection")
-    public ResponseEntity<ApiResponse> testAdConnection(@RequestBody Map<String, String> request) {
-        try {
-            String serverUrl = request.get("serverUrl");
-
-            if (serverUrl == null || serverUrl.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse(false, "Server URL is required"));
-            }
-
-            // Simple URL validation
-            if (!serverUrl.startsWith("ldap://") && !serverUrl.startsWith("ldaps://")) {
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse(false, "Server URL must start with ldap:// or ldaps://"));
-            }
-
-            // TODO: Implement actual LDAP connection test
-            // For now, return a simulated response
-            logger.info("AD connection test requested for: {}", serverUrl);
-
-            return ResponseEntity.ok(
-                    new ApiResponse(true, "Connection test successful. Server is reachable.")
-            );
-
-        } catch (Exception e) {
-            logger.error("AD connection test failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Connection test failed. Please check server URL and network connectivity."));
-        }
-    }
-
-    /**
-     * Test Active Directory authentication
-     */
-    @PostMapping("/ad/test-auth")
-    public ResponseEntity<ApiResponse> testAdAuthentication(@RequestBody Map<String, String> request) {
-        try {
-            String serverUrl = request.get("serverUrl");
-            String username = request.get("username");
-            String password = request.get("password");
-            String baseDn = request.get("baseDn");
-
-            // Validate required fields
-            if (serverUrl == null || username == null || password == null) {
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse(false, "Server URL, username, and password are required"));
-            }
-
-            // TODO: Implement actual LDAP authentication test
-            // For now, return a simulated response
-            logger.info("AD authentication test requested for user: {}", username);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("userCount", 10); // Simulated user count
-
-            return ResponseEntity.ok(
-                    new ApiResponse(true, "Authentication successful", result)
-            );
-
-        } catch (Exception e) {
-            logger.error("AD authentication test failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Authentication test failed. Please check credentials."));
-        }
-    }
-
-    /**
      * Get current SSO configuration
      */
-    @GetMapping("/sso/config")
+    @GetMapping("/config")
     public ResponseEntity<ApiResponse> getSsoConfig() {
         try {
             Long tenantId = getTenantIdOrThrow();
@@ -338,7 +216,7 @@ public class SsoAdminController {
     /**
      * Check SSO status for tenant
      */
-    @GetMapping("/sso/status")
+    @GetMapping("/status")
     public ResponseEntity<ApiResponse> getSsoStatus() {
         try {
             Long tenantId = getTenantIdOrThrow();
@@ -466,7 +344,7 @@ public class SsoAdminController {
         maskedData.put("miniorangeClientSecret", config.getMiniorangeClientSecret() != null ? "********" : null);
         maskedData.put("miniorangeRedirectUri", config.getMiniorangeRedirectUri());
 
-        // AD (mask password)
+        // AD (mask password) - Still included in response but handled by ActiveDirectoryController
         maskedData.put("adEnabled", config.getAdEnabled());
         maskedData.put("adServerUrl", config.getAdServerUrl());
         maskedData.put("adUsername", config.getAdUsername());
