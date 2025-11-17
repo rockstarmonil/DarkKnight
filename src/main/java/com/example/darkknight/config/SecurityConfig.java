@@ -18,26 +18,28 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        // Disable CSRF for OAuth/SAML/JWT callback endpoints
+                        // Disable CSRF for OAuth/SAML/JWT callback endpoints + Tenant Registration
                         .ignoringRequestMatchers(
                                 "/oauth/**",
                                 "/sso/**",
                                 "/jwt/**",
                                 "/login",
-                                "/api/**"
+                                "/api/**",
+                                "/tenant/register",  // ✅ ADDED THIS LINE
+                                "/admin/sso/save-oauth"   // ✅ FIXED
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public Routes (Permit All)
+                        // Public Routes
                         .requestMatchers(
-                                "/jwt/**",              // JWT SSO endpoints
-                                "/sso/saml/**",         // SAML SSO endpoints
-                                "/sso/oauth/**",        // OAuth SSO endpoints
-                                "/oauth/**",            // OAuth callback and endpoints
-                                "/oauth/login",         // OAuth login initiation
-                                "/oauth/callback",      // OAuth callback
-                                "/tenant/register",     // Tenant registration
-                                "/tenant/check-subdomain", // Subdomain availability check
+                                "/jwt/**",
+                                "/sso/saml/**",
+                                "/sso/oauth/**",
+                                "/oauth/**",
+                                "/oauth/login",
+                                "/oauth/callback",
+                                "/tenant/register",
+                                "/tenant/check-subdomain",
                                 "/login",
                                 "/register",
                                 "/api/auth/register",
@@ -48,24 +50,16 @@ public class SecurityConfig {
                                 "/"
                         ).permitAll()
 
-                        // ✅ Protected Routes - Super Admin
+                        // Protected Routes
                         .requestMatchers("/main-admin/**").hasAuthority("ROLE_SUPER_ADMIN")
-
-                        // ✅ Protected Routes - Tenant Admin
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")
-
-                        // ✅ Protected Routes - Users
                         .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
 
-                        // Dashboard redirects
                         .requestMatchers("/dashboard").authenticated()
-
-                        // Any other request must be authenticated
                         .anyRequest().authenticated()
                 )
 
-                // ✅ Disable default form login (we handle login manually)
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/spring-security-login")
@@ -73,7 +67,6 @@ public class SecurityConfig {
                         .disable()
                 )
 
-                // ✅ Logout setup
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
@@ -82,7 +75,6 @@ public class SecurityConfig {
                         .permitAll()
                 )
 
-                // ✅ Session management
                 .sessionManagement(session -> session
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false)

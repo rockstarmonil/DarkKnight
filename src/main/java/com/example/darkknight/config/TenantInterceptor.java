@@ -29,12 +29,20 @@ public class TenantInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String host = request.getServerName();
         String subdomain = extractSubdomain(host);
+        String requestUri = request.getRequestURI();
 
         System.out.println("🌐 Request Host: " + host);
         System.out.println("🔍 Extracted Subdomain: " + subdomain);
+        System.out.println("📍 Request URI: " + requestUri);
+
+        // ✅ BLOCK tenant registration from subdomains
+        if (requestUri.startsWith("/tenant/register") && subdomain != null && !subdomain.isEmpty()) {
+            System.out.println("❌ Blocking tenant registration from subdomain: " + subdomain);
+            response.sendRedirect("/login?error=tenant_registration_not_allowed_from_subdomain");
+            return false;
+        }
 
         // Skip tenant resolution for main admin routes and static resources
-        String requestUri = request.getRequestURI();
         if (shouldSkipTenantResolution(requestUri)) {
             System.out.println("⚪ Skipping tenant resolution for: " + requestUri);
             return true;
@@ -71,8 +79,6 @@ public class TenantInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    // ✅ CRITICAL FIX: Move clear() to postHandle instead of afterCompletion
-    // This ensures TenantContext is available during controller execution
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response,
                            Object handler, ModelAndView modelAndView) throws Exception {
@@ -82,9 +88,8 @@ public class TenantInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) throws Exception {
-        // ✅ Now clear after the entire request is complete
+        // ✅ Clear after the entire request is complete
         TenantContext.clear();
-        System.out.println("🧹 TenantContext cleared after request completion");
     }
 
     /**

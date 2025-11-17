@@ -438,6 +438,357 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // ========================================
+    // SSO CONFIGURATION FUNCTIONS (NEW/FIXED)
+    // ========================================
+
+    /**
+     * Save SAML Configuration - FIXED
+     */
+    async function saveSamlConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('samlConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        // FIXED: Added missing fields
+        const data = {
+            samlEnabled: document.getElementById('samlEnabled').checked,
+            samlIdpLoginUrl: form.samlIdpLoginUrl.value || null,
+            samlSpEntityId: form.samlSpEntityId.value || null,
+            samlSpAcsUrl: form.samlSpAcsUrl.value || null,
+            samlSpBinding: form.samlSpBinding ? form.samlSpBinding.value || null : null,
+            samlSpNameIdFormat: form.samlSpNameIdFormat ? form.samlSpNameIdFormat.value || null : null,
+            samlCertificatePath: form.samlCertificatePath.value || null
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-saml', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            showMessage('samlSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
+        } catch (error) {
+            showMessage('samlSaveMessage', 'danger', 'Network error: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Save OAuth Configuration - CORRECT
+     */
+    async function saveOauthConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('oauthConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        const data = {
+            oauthEnabled: document.getElementById('oauthEnabled').checked,
+            oauthClientId: form.oauthClientId.value || null,
+            oauthClientSecret: form.oauthClientSecret.value || null,
+            oauthRedirectUri: form.oauthRedirectUri.value || null,
+            oauthAuthorizationUrl: form.oauthAuthorizationUrl.value || null,
+            oauthTokenUrl: form.oauthTokenUrl.value || null,
+            oauthUserinfoUrl: form.oauthUserinfoUrl.value || null
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-oauth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            showMessage('oauthSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
+        } catch (error) {
+            showMessage('oauthSaveMessage', 'danger', 'Network error: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Save JWT Configuration - FIXED
+     */
+    async function saveJwtConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('jwtConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        // FIXED: Added missing miniorangeRedirectUri field
+        const data = {
+            jwtEnabled: document.getElementById('jwtEnabled').checked,
+            miniorangeLoginUrl: form.jwtLoginUrl.value || null,
+            miniorangeClientId: form.jwtClientId.value || null,
+            miniorangeClientSecret: form.jwtClientSecret.value || null,
+            miniorangeRedirectUri: form.jwtRedirectUri.value || null
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-jwt', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            showMessage('jwtSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
+        } catch (error) {
+            showMessage('jwtSaveMessage', 'danger', 'Network error: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Save Active Directory Configuration
+     */
+    async function saveAdConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('adConfigForm');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.disabled = true;
+
+        const data = {
+            adEnabled: document.getElementById('adEnabled').checked,
+            adServerUrl: form.adServerUrl.value || null,
+            adUsername: form.adUsername.value || null,
+            adPassword: form.adPassword.value || null,
+            adBaseDn: form.adBaseDn.value || null,
+            adDomain: form.adDomain.value || null
+        };
+
+        try {
+            const response = await fetch('/admin/ad/save-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            showMessage('adSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
+        } catch (error) {
+            showMessage('adSaveMessage', 'danger', 'Network error: ' + error.message);
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Test Active Directory Connection
+     */
+    async function testAdConnection() {
+        const resultDiv = document.getElementById('adTestResult');
+        resultDiv.className = 'test-result';
+        resultDiv.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Testing connection...';
+        resultDiv.style.display = 'block';
+
+        const data = {
+            serverUrl: document.getElementById('adServerUrl').value
+        };
+
+        try {
+            const response = await fetch('/admin/ad/test-connection', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                resultDiv.className = 'test-result success';
+                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${result.message}`;
+            } else {
+                resultDiv.className = 'test-result failed';
+                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i>${result.message}`;
+            }
+        } catch (error) {
+            resultDiv.className = 'test-result failed';
+            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Connection test failed: ' + error.message;
+        }
+    }
+
+    /**
+     * Test Active Directory Authentication
+     */
+    async function testAdAuthentication() {
+        const resultDiv = document.getElementById('adTestResult');
+        resultDiv.className = 'test-result';
+        resultDiv.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Testing authentication...';
+        resultDiv.style.display = 'block';
+
+        const data = {
+            serverUrl: document.getElementById('adServerUrl').value,
+            username: document.getElementById('adUsername').value,
+            password: document.getElementById('adPassword').value,
+            baseDn: document.getElementById('adBaseDn').value
+        };
+
+        try {
+            const response = await fetch('/admin/ad/test-auth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                resultDiv.className = 'test-result success';
+                const userCount = result.data && result.data.userCount ? result.data.userCount : 0;
+                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${result.message}<br><small>Found ${userCount} users in directory</small>`;
+            } else {
+                resultDiv.className = 'test-result failed';
+                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i>${result.message}`;
+            }
+        } catch (error) {
+            resultDiv.className = 'test-result failed';
+            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Authentication test failed: ' + error.message;
+        }
+    }
+
+    // ========================================
+    // HELPER FUNCTIONS FOR SSO
+    // ========================================
+
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        document.execCommand('copy');
+        showToast('success', 'Copied to clipboard!');
+    }
+
+    function togglePassword(elementId) {
+        const element = document.getElementById(elementId);
+        const icon = event.target;
+        if (element.type === 'password') {
+            element.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            element.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    }
+
+    function showMessage(elementId, type, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.innerHTML = `<div class="alert alert-${type} mb-0"><i class="bi bi-${type === 'success' ? 'check' : 'x'}-circle-fill me-2"></i>${message}</div>`;
+            setTimeout(() => element.innerHTML = '', 5000);
+        }
+    }
+
+    function showToast(type, message) {
+        alert((type === 'success' ? '✓ ' : '✗ ') + message);
+    }
+
+    // ========================================
+    // USER MANAGEMENT FUNCTIONS (EXISTING)
+    // ========================================
+
+    async function createUser() {
+        const data = {
+            email: document.getElementById('userEmail').value,
+            password: document.getElementById('userPassword').value,
+            firstName: document.getElementById('userFirstName').value,
+            lastName: document.getElementById('userLastName').value,
+            role: document.getElementById('userRole').value
+        };
+
+        try {
+            const response = await fetch('/tenant-admin/users/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.success) {
+                alert('✓ ' + result.message);
+                const modal = document.getElementById('addUserModal');
+                if (modal) {
+                    bootstrap.Modal.getInstance(modal).hide();
+                }
+                location.reload();
+            } else {
+                alert('✗ ' + result.message);
+            }
+        } catch (error) {
+            alert('✗ Error creating user: ' + error.message);
+        }
+    }
+
+    async function toggleUserStatus(id) {
+        if (!confirm('Toggle user status?')) return;
+        try {
+            const response = await fetch(`/tenant-admin/users/${id}/toggle-status`, { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                alert('✓ ' + result.message);
+                location.reload();
+            } else {
+                alert('✗ ' + result.message);
+            }
+        } catch (error) {
+            alert('✗ Error toggling status: ' + error.message);
+        }
+    }
+
+    async function resetPassword(id) {
+        const newPassword = prompt('Enter new password (minimum 6 characters):');
+        if (!newPassword || newPassword.length < 6) {
+            alert('✗ Password must be at least 6 characters');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/tenant-admin/users/${id}/reset-password`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({newPassword})
+            });
+            const result = await response.json();
+            alert((result.success ? '✓ ' : '✗ ') + result.message);
+        } catch (error) {
+            alert('✗ Error resetting password: ' + error.message);
+        }
+    }
+
+    async function deleteUser(id) {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        try {
+            const response = await fetch(`/tenant-admin/users/${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (result.success) {
+                alert('✓ ' + result.message);
+                location.reload();
+            } else {
+                alert('✗ ' + result.message);
+            }
+        } catch (error) {
+            alert('✗ Error deleting user: ' + error.message);
+        }
+    }
+
+    // ========================================
+    // TENANT MANAGEMENT FUNCTIONS (EXISTING)
+    // ========================================
+
     async function createTenant() {
         const data = {
             companyName: document.getElementById('tenantCompanyName').value,
@@ -482,29 +833,6 @@
             if (result.success) location.reload();
         } catch (error) {
             alert('Error deleting tenant');
-        }
-    }
-
-    async function toggleUserStatus(id) {
-        try {
-            const response = await fetch(`/main-admin/users/${id}/toggle-status`, {method: 'POST'});
-            const result = await response.json();
-            alert(result.message);
-            if (result.success) location.reload();
-        } catch (error) {
-            alert('Error toggling user status');
-        }
-    }
-
-    async function deleteUser(id) {
-        if (!confirm('Delete this user?')) return;
-        try {
-            const response = await fetch(`/main-admin/users/${id}`, {method: 'DELETE'});
-            const result = await response.json();
-            alert(result.message);
-            if (result.success) location.reload();
-        } catch (error) {
-            alert('Error deleting user');
         }
     }
 </script>

@@ -84,11 +84,14 @@
 <div class="error-container">
     <i class="bi bi-exclamation-triangle error-icon"></i>
 
-    <div class="error-code" th:text="${status} ?: '403'">403</div>
+    <!-- FIXED -->
+    <div class="error-code" th:text="${#strings.defaultString(status, '403')}">403</div>
 
-    <h1 class="error-title" th:text="${error} ?: 'Forbidden'">Forbidden</h1>
+    <!-- FIXED -->
+    <h1 class="error-title" th:text="${#strings.defaultString(error, 'Forbidden')}">Forbidden</h1>
 
-    <p class="error-message" th:text="${message} ?: 'You don''t have permission to access this resource.'">
+    <!-- FIXED -->
+    <p class="error-message" th:text="${#strings.defaultString(message, 'You don''t have permission to access this resource.')}">
         You don't have permission to access this resource.
     </p>
 
@@ -103,7 +106,6 @@
         </div>
     </div>
 
-    <!-- Common error explanations -->
     <div th:if="${status == 403}">
         <div class="error-details">
             <strong>Possible reasons:</strong>
@@ -129,7 +131,6 @@
         </a>
     </div>
 
-    <!-- Debug information (only show in development) -->
     <div th:if="${trace}" class="error-details" style="margin-top: 1rem;">
         <strong>Debug Information:</strong>
         <pre style="margin-top: 0.5rem; font-size: 0.75rem; white-space: pre-wrap; word-wrap: break-word;" th:text="${trace}"></pre>

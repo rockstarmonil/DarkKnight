@@ -1,256 +1,260 @@
 package com.example.darkknight.controller;
 
+import com.example.darkknight.model.Tenant;
+import com.example.darkknight.model.TenantSsoConfig;
 import com.example.darkknight.model.User;
+import com.example.darkknight.repository.TenantRepository;
 import com.example.darkknight.repository.UserRepository;
-import com.example.darkknight.security.CustomUserDetails;
+import com.example.darkknight.service.TenantSsoConfigService;
+import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.http.*;
 
-import java.util.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Controller
-@RequestMapping("/oauth")
 public class OAuthController {
 
     @Autowired
     private UserRepository userRepository;
 
-    @Value("${miniorange.oauth.client.id}")
-    private String clientId;
+    @Autowired
+    private TenantRepository tenantRepository;
 
-    @Value("${miniorange.oauth.client.secret}")
-    private String clientSecret;
-
-    @Value("${miniorange.oauth.authorization.url}")
-    private String authorizationUrl;
-
-    @Value("${miniorange.oauth.token.url}")
-    private String tokenUrl;
-
-    @Value("${miniorange.oauth.userinfo.url}")
-    private String userinfoUrl;
-
-    @Value("${miniorange.oauth.redirect.uri}")
-    private String redirectUri;
+    @Autowired
+    private TenantSsoConfigService ssoConfigService;
 
     /**
-     * Initiate OAuth login - redirects user to OAuth provider
+     * Step 1: Redirect to OAuth provider login
+     * Uses dynamic tenant-based configuration
      */
-    @GetMapping("/login")
-    public String initiateOAuthLogin(HttpServletRequest request) {
-        System.out.println("🔐 Initiating OAuth login");
-        System.out.println("   - Authorization URL: " + authorizationUrl);
-        System.out.println("   - Client ID: " + clientId);
-        System.out.println("   - Redirect URI: " + redirectUri);
+    @GetMapping("/oauth/login")
+    public String oauthLogin() {
+        try {
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId == null) {
+                System.err.println("❌ No tenant context found");
+                return "redirect:/login?error=no_tenant";
+            }
 
-        // Build OAuth authorization URL
-        String authUrl = authorizationUrl +
-                "?client_id=" + clientId +
-                "&redirect_uri=" + redirectUri +
-                "&response_type=code" +
-                "&scope=openid email profile";
+            // Get tenant's OAuth configuration
+            TenantSsoConfig ssoConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
 
-        System.out.println("🔗 Redirecting to: " + authUrl);
+            // Check if OAuth is enabled
+            if (!Boolean.TRUE.equals(ssoConfig.getOauthEnabled())) {
+                System.err.println("❌ OAuth is not enabled for this tenant");
+                return "redirect:/login?error=oauth_disabled";
+            }
 
-        return "redirect:" + authUrl;
+            // Validate OAuth configuration
+            if (!ssoConfigService.validateOauthConfig(ssoConfig)) {
+                System.err.println("❌ OAuth configuration is incomplete");
+                return "redirect:/login?error=oauth_not_configured";
+            }
+
+            System.out.println("🚀 Initiating OAuth login for tenant: " + tenantId);
+
+            String url = ssoConfig.getOauthAuthorizationUrl() + "?response_type=code"
+                    + "&client_id=" + URLEncoder.encode(ssoConfig.getOauthClientId(), StandardCharsets.UTF_8)
+                    + "&redirect_uri=" + URLEncoder.encode(ssoConfig.getOauthRedirectUri(), StandardCharsets.UTF_8)
+                    + "&scope=openid%20profile%20email";
+
+            System.out.println("🔗 Redirecting to OAuth provider: " + ssoConfig.getOauthAuthorizationUrl());
+
+            return "redirect:" + url;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("❌ OAuth initiation error: " + e.getMessage());
+            return "redirect:/login?error=" + URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+        }
     }
 
     /**
-     * OAuth callback - handles the response from OAuth provider
+     * Step 2: Callback from OAuth provider after login
      */
-    @GetMapping("/callback")
-    public String handleOAuthCallback(
-            @RequestParam(required = false) String code,
-            @RequestParam(required = false) String error,
-            @RequestParam(required = false) String error_description,
-            HttpServletRequest request) {
+    @GetMapping("/oauth/callback")
+    public String oauthCallback(@RequestParam(required = false) String code,
+                                @RequestParam(required = false) String error,
+                                Model model,
+                                HttpServletRequest request) {
 
-        System.out.println("📥 OAuth callback received");
-        System.out.println("   - Code: " + (code != null ? "Present" : "Missing"));
-        System.out.println("   - Error: " + error);
-
-        // Check for OAuth errors
         if (error != null) {
             System.err.println("❌ OAuth error: " + error);
-            System.err.println("   Description: " + error_description);
-            return "redirect:/login?error=oauth_failed&message=" + error_description;
+            model.addAttribute("error", "OAuth Error: " + error);
+            return "error";
         }
 
-        // Check if authorization code is present
         if (code == null || code.isEmpty()) {
             System.err.println("❌ No authorization code received");
-            return "redirect:/login?error=no_code";
+            model.addAttribute("error", "No authorization code received.");
+            return "error";
         }
 
         try {
-            // Step 1: Exchange authorization code for access token
-            System.out.println("🔄 Exchanging code for access token");
-            String accessToken = exchangeCodeForToken(code);
+            Long tenantId = TenantContext.getTenantId();
+            if (tenantId == null) {
+                System.err.println("❌ No tenant context in OAuth callback");
+                model.addAttribute("error", "Invalid tenant context");
+                return "error";
+            }
+
+            System.out.println("📥 OAuth callback received for tenant: " + tenantId);
+
+            // Get tenant's OAuth configuration
+            TenantSsoConfig ssoConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
+
+            if (!Boolean.TRUE.equals(ssoConfig.getOauthEnabled())) {
+                model.addAttribute("error", "OAuth is not enabled");
+                return "error";
+            }
+
+            // Get tenant
+            Tenant tenant = tenantRepository.findById(tenantId)
+                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
+
+            RestTemplate restTemplate = new RestTemplate();
+
+            // 1. Exchange code for access token
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            String body = "grant_type=authorization_code"
+                    + "&code=" + code
+                    + "&redirect_uri=" + URLEncoder.encode(ssoConfig.getOauthRedirectUri(), StandardCharsets.UTF_8)
+                    + "&client_id=" + ssoConfig.getOauthClientId()
+                    + "&client_secret=" + ssoConfig.getOauthClientSecret();
+
+            HttpEntity<String> requestEntity = new HttpEntity<>(body, headers);
+            ResponseEntity<String> tokenResponse = restTemplate.exchange(
+                    ssoConfig.getOauthTokenUrl(),
+                    HttpMethod.POST,
+                    requestEntity,
+                    String.class
+            );
+
+            JSONObject tokenJson = new JSONObject(tokenResponse.getBody());
+            String accessToken = tokenJson.optString("access_token", null);
 
             if (accessToken == null) {
-                System.err.println("❌ Failed to get access token");
-                return "redirect:/login?error=token_failed";
+                System.err.println("❌ No access token received");
+                model.addAttribute("error", "No access token received.");
+                return "error";
             }
 
             System.out.println("✅ Access token received");
 
-            // Step 2: Get user info using access token
-            System.out.println("🔄 Fetching user info");
-            Map<String, Object> userInfo = getUserInfo(accessToken);
+            // 2. Fetch user info
+            HttpHeaders userHeaders = new HttpHeaders();
+            userHeaders.setBearerAuth(accessToken);
+            HttpEntity<Void> userRequest = new HttpEntity<>(userHeaders);
 
-            if (userInfo == null || userInfo.isEmpty()) {
-                System.err.println("❌ Failed to get user info");
-                return "redirect:/login?error=userinfo_failed";
-            }
+            ResponseEntity<String> userResponse = restTemplate.exchange(
+                    ssoConfig.getOauthUserinfoUrl(),
+                    HttpMethod.GET,
+                    userRequest,
+                    String.class
+            );
 
-            System.out.println("✅ User info received: " + userInfo);
-
-            // Step 3: Extract user details
-            String email = (String) userInfo.get("email");
-            String firstName = (String) userInfo.get("given_name");
-            String lastName = (String) userInfo.get("family_name");
+            JSONObject userInfo = new JSONObject(userResponse.getBody());
+            String email = userInfo.optString("email", null);
+            String name = userInfo.optString("name", "OAuth User");
+            String firstName = userInfo.optString("given_name", userInfo.optString("firstName", name));
+            String lastName = userInfo.optString("family_name", userInfo.optString("lastName", ""));
 
             if (email == null || email.isEmpty()) {
-                System.err.println("❌ No email in user info");
-                return "redirect:/login?error=no_email";
+                System.err.println("❌ No email in OAuth response");
+                model.addAttribute("error", "No email received from OAuth provider");
+                return "error";
             }
 
-            System.out.println("📧 User email: " + email);
+            System.out.println("👤 OAuth user email: " + email);
 
-            // Step 4: Find or create user
-            User user = userRepository.findByEmail(email).orElse(null);
+            // 3. Find or create user for this tenant
+            User user = userRepository.findByEmailAndTenantId(email, tenantId)
+                    .orElseGet(() -> {
+                        System.out.println("➕ Creating new OAuth user: " + email);
+                        User newUser = new User();
+                        newUser.setEmail(email);
+                        newUser.setUsername(email);
+                        newUser.setFirstName(firstName);
+                        newUser.setLastName(lastName);
+                        newUser.setRole("ROLE_USER");
+                        newUser.setEnabled(true);
+                        newUser.setTenant(tenant);
+                        newUser.setCreatedAt(LocalDateTime.now());
+                        newUser.setUpdatedAt(LocalDateTime.now());
+                        return newUser;
+                    });
 
-            if (user == null) {
-                System.out.println("⚠️ User not found, OAuth users must be pre-registered");
-                return "redirect:/login?error=user_not_found";
-            }
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+            System.out.println("💾 OAuth user saved: " + user.getEmail());
 
-            // Check if user is enabled
-            if (!user.isEnabled()) {
-                System.err.println("❌ User account is disabled: " + email);
-                return "redirect:/login?error=account_disabled";
-            }
-
-            System.out.println("✅ User authenticated via OAuth: " + email);
-
-            // Step 5: Create authentication and session
-            CustomUserDetails userDetails = new CustomUserDetails(user);
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-
-            SecurityContextHolder.getContext().setAuthentication(auth);
-
+            // 4. Create session
             HttpSession session = request.getSession(true);
-            session.setAttribute("user", user);
             session.setAttribute("isLoggedIn", true);
-            session.setAttribute("oauthLogin", true);
+            session.setAttribute("user", user);
+            session.setAttribute("oauthAuthenticated", true);
+            session.setAttribute("accessToken", accessToken);
+
+            // 5. Setup Spring Security
+            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+            authorities.add(new SimpleGrantedAuthority(user.getRole()));
+
+            var auth = new UsernamePasswordAuthenticationToken(
+                    email, null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
             System.out.println("✅ OAuth login successful for: " + email);
 
-            // Step 6: Redirect based on role
-            if ("ROLE_ADMIN".equalsIgnoreCase(user.getRole())) {
-                return "redirect:/tenant-admin/dashboard";
-            } else {
-                return "redirect:/user/dashboard";
+            // Redirect based on role
+            String redirectUrl = "/dashboard";
+            if ("ROLE_ADMIN".equals(user.getRole())) {
+                redirectUrl = "/tenant-admin/dashboard";
             }
 
+            return "redirect:" + redirectUrl;
+
         } catch (Exception e) {
+            e.printStackTrace();
             System.err.println("❌ OAuth callback error: " + e.getMessage());
-            e.printStackTrace();
-            return "redirect:/login?error=oauth_exception";
+            model.addAttribute("error", "OAuth Exception: " + e.getMessage());
+            return "error";
         }
     }
 
     /**
-     * Exchange authorization code for access token
+     * Logout
      */
-    private String exchangeCodeForToken(String code) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-
-            // Prepare token request
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            String requestBody = "grant_type=authorization_code" +
-                    "&code=" + code +
-                    "&redirect_uri=" + redirectUri +
-                    "&client_id=" + clientId +
-                    "&client_secret=" + clientSecret;
-
-            HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-
-            System.out.println("🔄 Token request to: " + tokenUrl);
-
-            // Make token request
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    tokenUrl,
-                    HttpMethod.POST,
-                    request,
-                    Map.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                Map<String, Object> tokenResponse = response.getBody();
-                String accessToken = (String) tokenResponse.get("access_token");
-                System.out.println("✅ Access token retrieved");
-                return accessToken;
+    @GetMapping("/oauth/logout")
+    public String logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            User user = (User) session.getAttribute("user");
+            if (user != null) {
+                System.out.println("👋 Logging out OAuth user: " + user.getEmail());
             }
-
-            System.err.println("❌ Token request failed: " + response.getStatusCode());
-            return null;
-
-        } catch (Exception e) {
-            System.err.println("❌ Error exchanging code for token: " + e.getMessage());
-            e.printStackTrace();
-            return null;
+            session.invalidate();
         }
-    }
-
-    /**
-     * Get user info using access token
-     */
-    private Map<String, Object> getUserInfo(String accessToken) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(accessToken);
-
-            HttpEntity<String> request = new HttpEntity<>(headers);
-
-            System.out.println("🔄 Userinfo request to: " + userinfoUrl);
-
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    userinfoUrl,
-                    HttpMethod.GET,
-                    request,
-                    Map.class
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                System.out.println("✅ User info retrieved");
-                return response.getBody();
-            }
-
-            System.err.println("❌ Userinfo request failed: " + response.getStatusCode());
-            return null;
-
-        } catch (Exception e) {
-            System.err.println("❌ Error getting user info: " + e.getMessage());
-            e.printStackTrace();
-            return null;
-        }
+        SecurityContextHolder.clearContext();
+        System.out.println("✅ OAuth logout successful");
+        return "redirect:/login?logout";
     }
 }
