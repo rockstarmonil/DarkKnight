@@ -5,6 +5,7 @@ import com.example.darkknight.repository.TenantRepository;
 import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,80 @@ public class TenantInterceptor implements HandlerInterceptor {
         System.out.println("🌐 Request Host: " + host);
         System.out.println("🔍 Extracted Subdomain: " + subdomain);
         System.out.println("📍 Request URI: " + requestUri);
+
+        // ✅ SPECIAL HANDLING FOR OAuth/SAML/JWT CALLBACKS
+        if (isAuthCallbackEndpoint(requestUri)) {
+            System.out.println("🔄 Auth callback detected - restoring tenant context");
+            
+            // Try to restore tenant context from session
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                Long savedTenantId = (Long) session.getAttribute("oauth_tenant_id");
+                String savedSubdomain = (String) session.getAttribute("oauth_subdomain");
+                
+                if (savedTenantId != null) {
+                    TenantContext.setTenantId(savedTenantId);
+                    if (savedSubdomain != null) {
+                        TenantContext.setSubdomain(savedSubdomain);
+                    }
+                    System.out.println("✅ Restored tenant context from session - ID: " + savedTenantId + ", Subdomain: " + savedSubdomain);
+                    return true;
+                }
+            }
+            
+            // If no session data, try to extract from subdomain
+            if (subdomain != null && !subdomain.isEmpty()) {
+                Optional<Tenant> tenantOpt = tenantRepository.findBySubdomain(subdomain);
+                if (tenantOpt.isPresent()) {
+                    Tenant tenant = tenantOpt.get();
+                    TenantContext.setTenantId(tenant.getId());
+                    TenantContext.setSubdomain(subdomain);
+                    System.out.println("✅ Tenant resolved from subdomain for callback: " + tenant.getName());
+                    return true;
+                }
+            }
+            
+            System.err.println("⚠️ Could not restore tenant context for auth callback");
+            return true;
+        }
+
+        // ✅ SPECIAL HANDLING FOR AUTHENTICATED USER PAGES
+        if (isAuthenticatedUserEndpoint(requestUri)) {
+            System.out.println("🔒 Authenticated endpoint detected - checking tenant context");
+            
+            // First, try to get from current context
+            Long tenantId = TenantContext.getTenantId();
+            
+            // If not in context, try to restore from session
+            if (tenantId == null) {
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    tenantId = (Long) session.getAttribute("oauth_tenant_id");
+                    String savedSubdomain = (String) session.getAttribute("oauth_subdomain");
+                    
+                    if (tenantId != null) {
+                        TenantContext.setTenantId(tenantId);
+                        if (savedSubdomain != null) {
+                            TenantContext.setSubdomain(savedSubdomain);
+                        }
+                        System.out.println("✅ Restored tenant context for authenticated page from session");
+                    }
+                }
+            }
+            
+            // If still no tenant, try from subdomain
+            if (tenantId == null && subdomain != null && !subdomain.isEmpty()) {
+                Optional<Tenant> tenantOpt = tenantRepository.findBySubdomain(subdomain);
+                if (tenantOpt.isPresent()) {
+                    Tenant tenant = tenantOpt.get();
+                    TenantContext.setTenantId(tenant.getId());
+                    TenantContext.setSubdomain(subdomain);
+                    System.out.println("✅ Tenant resolved from subdomain: " + tenant.getName());
+                }
+            }
+            
+            return true;
+        }
 
         // ✅ BLOCK tenant registration from subdomains
         if (requestUri.startsWith("/tenant/register") && subdomain != null && !subdomain.isEmpty()) {
@@ -88,8 +163,35 @@ public class TenantInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                                 Object handler, Exception ex) throws Exception {
-        // ✅ Clear after the entire request is complete
-        TenantContext.clear();
+        String requestUri = request.getRequestURI();
+        
+        // ✅ DON'T clear tenant context for auth callbacks or authenticated pages
+        // Let them maintain context across redirects
+        if (!isAuthCallbackEndpoint(requestUri) && !isAuthenticatedUserEndpoint(requestUri)) {
+            TenantContext.clear();
+            System.out.println("🧹 Cleared tenant context for: " + requestUri);
+        } else {
+            System.out.println("⚠️ Keeping tenant context alive for: " + requestUri);
+        }
+    }
+
+    /**
+     * Check if this is an OAuth/SAML/JWT callback endpoint
+     */
+    private boolean isAuthCallbackEndpoint(String requestUri) {
+        return requestUri.startsWith("/oauth/callback") ||
+                requestUri.startsWith("/sso/saml/callback") ||
+                requestUri.startsWith("/jwt/callback");
+    }
+
+    /**
+     * Check if this is an authenticated user endpoint (dashboard, etc.)
+     */
+    private boolean isAuthenticatedUserEndpoint(String requestUri) {
+        return requestUri.startsWith("/user/dashboard") ||
+                requestUri.startsWith("/tenant-admin/dashboard") ||
+                requestUri.startsWith("/user/") ||
+                requestUri.startsWith("/tenant-admin/");
     }
 
     /**
