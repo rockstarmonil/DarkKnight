@@ -1,4 +1,4 @@
-package com.yourpackage.service;
+package com.example.darkknight.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
