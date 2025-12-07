@@ -315,25 +315,65 @@ public class AuthController {
     // ========================================
 
     @GetMapping("/user/dashboard")
-    public String userDashboard(Model model, Authentication authentication) {
-
-        if (!(authentication.getPrincipal() instanceof CustomUserDetails)) {
-            System.out.println("❌ Invalid principal type for user dashboard");
-            return "redirect:/login?error";
-        }
-
-        CustomUserDetails customUser = (CustomUserDetails) authentication.getPrincipal();
-        String principalEmail = customUser.getUsername();
-
-        User user = userRepository.findByEmail(principalEmail)
-                .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
-
-        model.addAttribute("user", user);
-
-        System.out.println("✅ User Dashboard - User: " + user.getEmail());
-
-        return "user-dashboard";
+public String userDashboard(Model model, Authentication authentication, HttpServletRequest request) {
+    
+    System.out.println("========================================");
+    System.out.println("📊 USER DASHBOARD ACCESS ATTEMPT");
+    System.out.println("========================================");
+    System.out.println("🔐 Authentication: " + (authentication != null ? "Present" : "NULL"));
+    
+    if (authentication != null) {
+        System.out.println("👤 Principal Type: " + authentication.getPrincipal().getClass().getName());
+        System.out.println("👤 Principal: " + authentication.getName());
+        System.out.println("🔑 Authorities: " + authentication.getAuthorities());
+        System.out.println("🔓 Authenticated: " + authentication.isAuthenticated());
     }
+    
+    // Check tenant context
+    Long tenantId = TenantContext.getTenantId();
+    String subdomain = TenantContext.getSubdomain();
+    System.out.println("🏢 TenantContext - ID: " + tenantId + ", Subdomain: " + subdomain);
+    
+    // Try to restore from session if null
+    if (tenantId == null) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            tenantId = (Long) session.getAttribute("oauth_tenant_id");
+            subdomain = (String) session.getAttribute("oauth_subdomain");
+            
+            if (tenantId != null) {
+                TenantContext.setTenantId(tenantId);
+                TenantContext.setSubdomain(subdomain);
+                System.out.println("✅ Restored tenant context from session: " + tenantId);
+            }
+        }
+    }
+
+    if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
+        System.err.println("❌ Invalid authentication or principal type");
+        System.err.println("❌ Expected CustomUserDetails but got: " + 
+            (authentication != null ? authentication.getPrincipal().getClass().getName() : "null"));
+        return "redirect:/login?error=invalid_auth";
+    }
+
+    CustomUserDetails customUser = (CustomUserDetails) authentication.getPrincipal();
+    String principalEmail = customUser.getUsername();
+    
+    System.out.println("👤 Loading user from database: " + principalEmail);
+
+    User user = userRepository.findByEmail(principalEmail)
+            .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
+
+    System.out.println("✅ User loaded: " + user.getEmail() + " (Role: " + user.getRole() + ")");
+    
+    model.addAttribute("user", user);
+
+    System.out.println("========================================");
+    System.out.println("✅ USER DASHBOARD LOADED SUCCESSFULLY");
+    System.out.println("========================================");
+
+    return "user-dashboard";
+}
 
     // ========================================
     // REGISTRATION

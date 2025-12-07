@@ -264,6 +264,7 @@ public class OAuthController {
             
             SecurityContextHolder.getContext().setAuthentication(auth);
             
+            // Store tenant context in session for subsequent requests
             System.out.println("✅ Spring Security authentication created");
             System.out.println("👤 Principal type: " + auth.getPrincipal().getClass().getName());
             System.out.println("👤 Principal username: " + userDetails.getUsername());
@@ -275,6 +276,10 @@ public class OAuthController {
             System.out.println("🔄 Step 5: Creating HTTP session");
             
             HttpSession session = request.getSession(true);
+            // Store tenant context in session for subsequent requests
+            session.setAttribute("oauth_tenant_id", tenantId);
+            session.setAttribute("oauth_subdomain", tenant.getSubdomain());
+            session.setAttribute("tenantId", tenantId);  // Add this
             session.setAttribute("user", user);
             session.setAttribute("isLoggedIn", true);
             session.setAttribute("oauthAuthenticated", true);

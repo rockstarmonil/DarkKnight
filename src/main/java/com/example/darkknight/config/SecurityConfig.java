@@ -2,6 +2,7 @@ package com.example.darkknight.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,24 +10,27 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
+
+    @Autowired
+    private SecurityDebugFilter securityDebugFilter;  // ⭐ ADDED
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        // Disable CSRF for OAuth/SAML/JWT callback endpoints + Tenant Registration
                         .ignoringRequestMatchers(
                                 "/oauth/**",
                                 "/sso/**",
                                 "/jwt/**",
                                 "/login",
                                 "/api/**",
-                                "/tenant/register",  // ✅ ADDED THIS LINE
-                                "/admin/sso/save-oauth"   // ✅ FIXED
+                                "/tenant/register",
+                                "/admin/sso/save-oauth",
+                                "/admin/ad/**"
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
@@ -78,7 +82,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false)
+                )
+                
+                .securityContext(context -> context
+                        .requireExplicitSave(false)
                 );
+
+        // ⭐ ADD DEBUG FILTER
+        http.addFilterBefore(securityDebugFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
