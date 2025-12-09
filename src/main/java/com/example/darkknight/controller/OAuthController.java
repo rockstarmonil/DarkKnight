@@ -251,42 +251,49 @@ public class OAuthController {
             System.out.println("💾 User saved - ID: " + user.getId() + ", Email: " + user.getEmail() + ", Role: " + user.getRole());
 
             // ==========================================
-            // 4. ⭐ KEY FIX: Create CustomUserDetails (like AuthController)
+            // 4. Create CustomUserDetails and Authentication
             // ==========================================
             System.out.println("🔄 Step 4: Setting up Spring Security authentication");
-            
+
             CustomUserDetails userDetails = new CustomUserDetails(user);
-            
-            var auth = new UsernamePasswordAuthenticationToken(
-                    userDetails,  // ⭐ Use CustomUserDetails, not email string
+
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    userDetails,
                     null,
                     userDetails.getAuthorities());
-            
-            SecurityContextHolder.getContext().setAuthentication(auth);
-            
-            // Store tenant context in session for subsequent requests
+
             System.out.println("✅ Spring Security authentication created");
             System.out.println("👤 Principal type: " + auth.getPrincipal().getClass().getName());
             System.out.println("👤 Principal username: " + userDetails.getUsername());
             System.out.println("🔐 Authorities: " + userDetails.getAuthorities());
 
             // ==========================================
-            // 5. Create session (matching AuthController pattern)
+            // 5. Create session and save security context
             // ==========================================
-            System.out.println("🔄 Step 5: Creating HTTP session");
-            
+            System.out.println("🔄 Step 5: Creating HTTP session and saving security context");
+
+            // Get or create session
             HttpSession session = request.getSession(true);
-            // Store tenant context in session for subsequent requests
-            session.setAttribute("oauth_tenant_id", tenantId);
-            session.setAttribute("oauth_subdomain", tenant.getSubdomain());
-            session.setAttribute("tenantId", tenantId);  // Add this
+            System.out.println("📝 Session ID BEFORE setting auth: " + session.getId());
+
+            // Set authentication in SecurityContext
+            SecurityContextHolder.getContext().setAuthentication(auth);
+
+            // ⭐ CRITICAL: Explicitly save security context to session
+            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+
+            // Store tenant info in session for subsequent requests
             session.setAttribute("user", user);
             session.setAttribute("isLoggedIn", true);
             session.setAttribute("oauthAuthenticated", true);
             session.setAttribute("accessToken", accessToken);
-            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
-            
-            System.out.println("✅ Session created - Session ID: " + session.getId());
+            session.setAttribute("oauth_tenant_id", tenantId);
+            session.setAttribute("oauth_subdomain", tenant.getSubdomain());
+            session.setAttribute("tenantId", tenantId);
+
+            System.out.println("✅ Session created and security context saved");
+            System.out.println("📝 Session ID AFTER setting auth: " + session.getId());
+            System.out.println("🔐 Security context in session: " + (session.getAttribute("SPRING_SECURITY_CONTEXT") != null));
 
             // ==========================================
             // 6. Role-based redirect (exactly like AuthController)

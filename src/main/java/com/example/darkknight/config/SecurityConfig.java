@@ -1,22 +1,27 @@
 package com.example.darkknight.config;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 @Configuration
 public class SecurityConfig {
 
     @Autowired
-    private SecurityDebugFilter securityDebugFilter;  // ⭐ ADDED
+    private SecurityDebugFilter securityDebugFilter;
+
+    @Bean
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,7 +34,7 @@ public class SecurityConfig {
                                 "/login",
                                 "/api/**",
                                 "/tenant/register",
-                                "/admin/sso/save-oauth",
+                                "/admin/sso/**",
                                 "/admin/ad/**"
                         )
                 )
@@ -79,16 +84,21 @@ public class SecurityConfig {
                         .permitAll()
                 )
 
+                // ⭐ CRITICAL FIX: Session management configuration
                 .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .sessionFixation().migrateSession()  // Migrate session instead of creating new
                         .maximumSessions(1)
                         .maxSessionsPreventsLogin(false)
                 )
                 
+                // ⭐ CRITICAL FIX: Store security context in session
                 .securityContext(context -> context
                         .requireExplicitSave(false)
+                        .securityContextRepository(securityContextRepository())
                 );
 
-        // ⭐ ADD DEBUG FILTER
+        // Add debug filter
         http.addFilterBefore(securityDebugFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
