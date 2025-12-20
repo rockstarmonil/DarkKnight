@@ -89,25 +89,33 @@ public class TenantAdminController {
 
         // ⭐ Generate and auto-populate redirect URIs if they don't exist
         String baseUrl = buildBaseUrl(tenant.getSubdomain());
+        boolean needsSave = false;
         
         if (ssoConfig.getOauthRedirectUri() == null || ssoConfig.getOauthRedirectUri().isEmpty()) {
             ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
+            needsSave = true;
         }
         
         if (ssoConfig.getSamlSpEntityId() == null || ssoConfig.getSamlSpEntityId().isEmpty()) {
             ssoConfig.setSamlSpEntityId(baseUrl);
+            needsSave = true;
         }
         
         if (ssoConfig.getSamlSpAcsUrl() == null || ssoConfig.getSamlSpAcsUrl().isEmpty()) {
             ssoConfig.setSamlSpAcsUrl(baseUrl + "/sso/saml/callback");
+            needsSave = true;
         }
         
         if (ssoConfig.getMiniorangeRedirectUri() == null || ssoConfig.getMiniorangeRedirectUri().isEmpty()) {
             ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");
+            needsSave = true;
         }
 
-        // Save the auto-generated URIs
-        ssoConfigService.saveSsoConfig(ssoConfig);
+        // Save the auto-generated URIs if any were missing
+        if (needsSave) {
+            ssoConfigService.saveSsoConfig(ssoConfig);
+            System.out.println("✅ Auto-generated SSO redirect URIs saved");
+        }
 
         // Add attributes to model
         model.addAttribute("tenant", tenant);

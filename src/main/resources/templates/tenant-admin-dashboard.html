@@ -852,10 +852,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // ==========================================
+    // Utility Functions
+    // ==========================================
     function copyToClipboard(elementId) {
         const element = document.getElementById(elementId);
         element.select();
         document.execCommand('copy');
+        
+        // Visual feedback
+        const originalBg = element.style.background;
+        element.style.background = 'rgba(16, 185, 129, 0.1)';
+        setTimeout(() => {
+            element.style.background = originalBg;
+        }, 300);
+        
         showToast('success', 'Copied to clipboard!');
     }
 
@@ -875,29 +886,35 @@
 
     function showMessage(elementId, type, message) {
         const element = document.getElementById(elementId);
-        element.innerHTML = `<div class="alert alert-${type} mb-0"><i class="bi bi-${type === 'success' ? 'check' : 'x'}-circle-fill me-2"></i>${message}</div>`;
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'check-circle-fill' : 'x-circle-fill';
+        element.innerHTML = `<div class="alert ${alertClass}"><i class="bi bi-${icon}"></i> ${message}</div>`;
         setTimeout(() => element.innerHTML = '', 5000);
     }
 
     function showToast(type, message) {
-        alert((type === 'success' ? '✓ ' : '✗ ') + message);
+        const icon = type === 'success' ? '✓' : '✗';
+        alert(`${icon} ${message}`);
     }
 
+    // ==========================================
+    // SAML Configuration
+    // ==========================================
     async function saveSamlConfig(event) {
         event.preventDefault();
         const form = document.getElementById('samlConfigForm');
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
         submitBtn.disabled = true;
 
         const data = {
             samlEnabled: document.getElementById('samlEnabled').checked,
             samlIdpLoginUrl: form.samlIdpLoginUrl.value,
-            samlSpEntityId: form.samlSpEntityId.value,
-            samlSpAcsUrl: form.samlSpAcsUrl.value,
             samlCertificatePath: form.samlCertificatePath.value
         };
+
+        console.log('Saving SAML config:', data);
 
         try {
             const response = await fetch('/admin/sso/save-saml', {
@@ -908,30 +925,68 @@
             const result = await response.json();
             showMessage('samlSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
         } catch (error) {
-            showMessage('samlSaveMessage', 'danger', 'Network error');
+            console.error('SAML save error:', error);
+            showMessage('samlSaveMessage', 'danger', 'Network error occurred');
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
         }
     }
 
+    async function toggleSamlEnabled() {
+        const isEnabled = document.getElementById('samlEnabled').checked;
+        const form = document.getElementById('samlConfigForm');
+        
+        console.log('SAML toggle changed to:', isEnabled);
+        
+        const data = {
+            samlEnabled: isEnabled,
+            samlIdpLoginUrl: form.samlIdpLoginUrl.value || '',
+            samlCertificatePath: form.samlCertificatePath.value || ''
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-saml', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                showMessage('samlSaveMessage', 'success', isEnabled ? 'SAML enabled' : 'SAML disabled');
+            } else {
+                document.getElementById('samlEnabled').checked = !isEnabled;
+                showMessage('samlSaveMessage', 'danger', result.message);
+            }
+        } catch (error) {
+            console.error('SAML toggle error:', error);
+            document.getElementById('samlEnabled').checked = !isEnabled;
+            showMessage('samlSaveMessage', 'danger', 'Error updating SAML status');
+        }
+    }
+
+    // ==========================================
+    // OAuth Configuration
+    // ==========================================
     async function saveOauthConfig(event) {
         event.preventDefault();
         const form = document.getElementById('oauthConfigForm');
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
         submitBtn.disabled = true;
 
         const data = {
             oauthEnabled: document.getElementById('oauthEnabled').checked,
             oauthClientId: form.oauthClientId.value,
             oauthClientSecret: form.oauthClientSecret.value,
-            oauthRedirectUri: form.oauthRedirectUri.value,
             oauthAuthorizationUrl: form.oauthAuthorizationUrl.value,
             oauthTokenUrl: form.oauthTokenUrl.value,
             oauthUserinfoUrl: form.oauthUserinfoUrl.value
         };
+
+        console.log('Saving OAuth config:', data);
 
         try {
             const response = await fetch('/admin/sso/save-oauth', {
@@ -942,19 +997,59 @@
             const result = await response.json();
             showMessage('oauthSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
         } catch (error) {
-            showMessage('oauthSaveMessage', 'danger', 'Network error');
+            console.error('OAuth save error:', error);
+            showMessage('oauthSaveMessage', 'danger', 'Network error occurred');
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
         }
     }
 
+    async function toggleOauthEnabled() {
+        const isEnabled = document.getElementById('oauthEnabled').checked;
+        const form = document.getElementById('oauthConfigForm');
+        
+        console.log('OAuth toggle changed to:', isEnabled);
+        
+        const data = {
+            oauthEnabled: isEnabled,
+            oauthClientId: form.oauthClientId.value || '',
+            oauthClientSecret: form.oauthClientSecret.value || '',
+            oauthAuthorizationUrl: form.oauthAuthorizationUrl.value || '',
+            oauthTokenUrl: form.oauthTokenUrl.value || '',
+            oauthUserinfoUrl: form.oauthUserinfoUrl.value || ''
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-oauth', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                showMessage('oauthSaveMessage', 'success', isEnabled ? 'OAuth enabled' : 'OAuth disabled');
+            } else {
+                document.getElementById('oauthEnabled').checked = !isEnabled;
+                showMessage('oauthSaveMessage', 'danger', result.message);
+            }
+        } catch (error) {
+            console.error('OAuth toggle error:', error);
+            document.getElementById('oauthEnabled').checked = !isEnabled;
+            showMessage('oauthSaveMessage', 'danger', 'Error updating OAuth status');
+        }
+    }
+
+    // ==========================================
+    // JWT Configuration
+    // ==========================================
     async function saveJwtConfig(event) {
         event.preventDefault();
         const form = document.getElementById('jwtConfigForm');
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
         submitBtn.disabled = true;
 
         const data = {
@@ -962,7 +1057,10 @@
             miniorangeLoginUrl: form.jwtLoginUrl.value,
             miniorangeClientId: form.jwtClientId.value,
             miniorangeClientSecret: form.jwtClientSecret.value
+            // ⭐ DON'T send miniorangeRedirectUri - it's auto-managed by backend
         };
+
+        console.log('Saving JWT config:', data);
 
         try {
             const response = await fetch('/admin/sso/save-jwt', {
@@ -973,19 +1071,60 @@
             const result = await response.json();
             showMessage('jwtSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
         } catch (error) {
-            showMessage('jwtSaveMessage', 'danger', 'Network error');
+            console.error('JWT save error:', error);
+            showMessage('jwtSaveMessage', 'danger', 'Network error occurred');
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
         }
     }
 
+    async function toggleJwtEnabled() {
+        const isEnabled = document.getElementById('jwtEnabled').checked;
+        const form = document.getElementById('jwtConfigForm');
+        
+        console.log('JWT toggle changed to:', isEnabled);
+        
+        const data = {
+            jwtEnabled: isEnabled,
+            miniorangeLoginUrl: form.jwtLoginUrl.value || '',
+            miniorangeClientId: form.jwtClientId.value || '',
+            miniorangeClientSecret: form.jwtClientSecret.value || ''
+            // ⭐ DON'T send miniorangeRedirectUri - backend will preserve it
+        };
+
+        try {
+            const response = await fetch('/admin/sso/save-jwt', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                showMessage('jwtSaveMessage', 'success', isEnabled ? 'JWT authentication enabled' : 'JWT authentication disabled');
+            } else {
+                // If save failed, revert the toggle
+                document.getElementById('jwtEnabled').checked = !isEnabled;
+                showMessage('jwtSaveMessage', 'danger', result.message);
+            }
+        } catch (error) {
+            console.error('JWT toggle error:', error);
+            // Revert the toggle on error
+            document.getElementById('jwtEnabled').checked = !isEnabled;
+            showMessage('jwtSaveMessage', 'danger', 'Error updating JWT status');
+        }
+    }
+
+    // ==========================================
+    // Active Directory Configuration
+    // ==========================================
     async function saveAdConfig(event) {
         event.preventDefault();
         const form = document.getElementById('adConfigForm');
         const submitBtn = event.target.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
         submitBtn.disabled = true;
 
         const data = {
@@ -997,6 +1136,8 @@
             adDomain: form.adDomain.value
         };
 
+        console.log('Saving AD config:', data);
+
         try {
             const response = await fetch('/admin/ad/save-config', {
                 method: 'POST',
@@ -1006,17 +1147,54 @@
             const result = await response.json();
             showMessage('adSaveMessage', result.success ? 'success' : 'danger', result.message || 'Configuration saved');
         } catch (error) {
-            showMessage('adSaveMessage', 'danger', 'Network error');
+            console.error('AD save error:', error);
+            showMessage('adSaveMessage', 'danger', 'Network error occurred');
         } finally {
             submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
         }
     }
 
+    async function toggleAdEnabled() {
+        const isEnabled = document.getElementById('adEnabled').checked;
+        const form = document.getElementById('adConfigForm');
+        
+        console.log('AD toggle changed to:', isEnabled);
+        
+        const data = {
+            adEnabled: isEnabled,
+            adServerUrl: form.adServerUrl.value || '',
+            adUsername: form.adUsername.value || '',
+            adPassword: form.adPassword.value || '',
+            adBaseDn: form.adBaseDn.value || '',
+            adDomain: form.adDomain.value || ''
+        };
+
+        try {
+            const response = await fetch('/admin/ad/save-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                showMessage('adSaveMessage', 'success', isEnabled ? 'Active Directory enabled' : 'Active Directory disabled');
+            } else {
+                document.getElementById('adEnabled').checked = !isEnabled;
+                showMessage('adSaveMessage', 'danger', result.message);
+            }
+        } catch (error) {
+            console.error('AD toggle error:', error);
+            document.getElementById('adEnabled').checked = !isEnabled;
+            showMessage('adSaveMessage', 'danger', 'Error updating AD status');
+        }
+    }
+
     async function testAdConnection() {
         const resultDiv = document.getElementById('adTestResult');
-        resultDiv.className = 'test-result';
-        resultDiv.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Testing connection...';
+        resultDiv.className = 'alert alert-info';
+        resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing connection...';
         resultDiv.style.display = 'block';
 
         const data = {
@@ -1032,22 +1210,23 @@
             const result = await response.json();
 
             if (result.success) {
-                resultDiv.className = 'test-result success';
-                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${result.message}`;
+                resultDiv.className = 'alert alert-success';
+                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${result.message}`;
             } else {
-                resultDiv.className = 'test-result failed';
-                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i>${result.message}`;
+                resultDiv.className = 'alert alert-danger';
+                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill"></i> ${result.message}`;
             }
         } catch (error) {
-            resultDiv.className = 'test-result failed';
-            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Connection test failed: Network error';
+            console.error('AD connection test error:', error);
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill"></i> Connection test failed: Network error';
         }
     }
 
     async function testAdAuthentication() {
         const resultDiv = document.getElementById('adTestResult');
-        resultDiv.className = 'test-result';
-        resultDiv.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Testing authentication...';
+        resultDiv.className = 'alert alert-info';
+        resultDiv.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Testing authentication...';
         resultDiv.style.display = 'block';
 
         const data = {
@@ -1066,18 +1245,22 @@
             const result = await response.json();
 
             if (result.success) {
-                resultDiv.className = 'test-result success';
-                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${result.message}<br><small>Found ${result.userCount || 0} users in directory</small>`;
+                resultDiv.className = 'alert alert-success';
+                resultDiv.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${result.message}<br><small>Found ${result.userCount || 0} users in directory</small>`;
             } else {
-                resultDiv.className = 'test-result failed';
-                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill me-2"></i>${result.message}`;
+                resultDiv.className = 'alert alert-danger';
+                resultDiv.innerHTML = `<i class="bi bi-x-circle-fill"></i> ${result.message}`;
             }
         } catch (error) {
-            resultDiv.className = 'test-result failed';
-            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Authentication test failed: Network error';
+            console.error('AD auth test error:', error);
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.innerHTML = '<i class="bi bi-x-circle-fill"></i> Authentication test failed: Network error';
         }
     }
 
+    // ==========================================
+    // User Management Functions
+    // ==========================================
     async function createUser() {
         const data = {
             email: document.getElementById('userEmail').value,
@@ -1102,6 +1285,7 @@
                 showToast('danger', result.message);
             }
         } catch (error) {
+            console.error('Create user error:', error);
             showToast('danger', 'Error creating user');
         }
     }
@@ -1118,13 +1302,17 @@
                 showToast('danger', result.message);
             }
         } catch (error) {
+            console.error('Toggle status error:', error);
             showToast('danger', 'Error toggling status');
         }
     }
 
     async function resetPassword(id) {
         const newPassword = prompt('Enter new password (minimum 6 characters):');
-        if (!newPassword || newPassword.length < 6) return;
+        if (!newPassword || newPassword.length < 6) {
+            alert('Password must be at least 6 characters long');
+            return;
+        }
 
         try {
             const response = await fetch(`/tenant-admin/users/${id}/reset-password`, {
@@ -1135,12 +1323,13 @@
             const result = await response.json();
             showToast(result.success ? 'success' : 'danger', result.message);
         } catch (error) {
+            console.error('Reset password error:', error);
             showToast('danger', 'Error resetting password');
         }
     }
 
     async function deleteUser(id) {
-        if (!confirm('Are you sure you want to delete this user?')) return;
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
         try {
             const response = await fetch(`/tenant-admin/users/${id}`, { method: 'DELETE' });
             const result = await response.json();
@@ -1151,6 +1340,7 @@
                 showToast('danger', result.message);
             }
         } catch (error) {
+            console.error('Delete user error:', error);
             showToast('danger', 'Error deleting user');
         }
     }

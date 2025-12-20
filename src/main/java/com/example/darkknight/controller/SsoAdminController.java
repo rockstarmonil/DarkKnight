@@ -142,76 +142,86 @@ public class SsoAdminController {
     /**
      * Save JWT configuration
      */
-    @PostMapping("/save-jwt")
-    public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
-        try {
-            Long tenantId = getTenantIdOrThrow();
-
-            // If JWT is enabled, validate all required fields
-            if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
-                validateRequiredField(dto.getMiniorangeLoginUrl(), "miniorangeLoginUrl");
-                validateRequiredField(dto.getMiniorangeClientId(), "miniorangeClientId");
-                validateRequiredField(dto.getMiniorangeClientSecret(), "miniorangeClientSecret");
-                validateRequiredField(dto.getMiniorangeRedirectUri(), "miniorangeRedirectUri");
-
-                // Validate URLs
-                validateUrl(dto.getMiniorangeLoginUrl(), "MiniOrange Login URL");
-                validateUrl(dto.getMiniorangeRedirectUri(), "MiniOrange Redirect URI");
-            }
-
-            // Convert DTO to entity
-            TenantSsoConfig updates = new TenantSsoConfig();
-            updates.setJwtEnabled(dto.getJwtEnabled());
-            updates.setMiniorangeLoginUrl(sanitizeInput(dto.getMiniorangeLoginUrl()));
-            updates.setMiniorangeClientId(sanitizeInput(dto.getMiniorangeClientId()));
-            updates.setMiniorangeClientSecret(dto.getMiniorangeClientSecret()); // Don't sanitize secrets
-            updates.setMiniorangeRedirectUri(sanitizeInput(dto.getMiniorangeRedirectUri()));
-
-            TenantSsoConfig config = ssoConfigService.updateJwtConfig(tenantId, updates);
-
-            // Validate configuration if enabled
-            if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
-                if (!ssoConfigService.validateJwtConfig(config)) {
-                    logger.warn("Invalid JWT configuration for tenant ID: {}", tenantId);
-                    return ResponseEntity.badRequest()
-                            .body(new ApiResponse(false, "Invalid JWT configuration. Please check all required fields."));
-                }
-            }
-
-            logger.info("JWT config saved successfully for tenant ID: {}", tenantId);
-            return ResponseEntity.ok(new ApiResponse(true, "JWT configuration saved successfully", maskSensitiveData(config)));
-
-        } catch (IllegalArgumentException e) {
-            logger.warn("Invalid JWT configuration parameters: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Failed to save JWT configuration", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Failed to save JWT configuration. Please try again."));
-        }
-    }
-
     /**
-     * Get current SSO configuration
-     */
-    @GetMapping("/config")
-    public ResponseEntity<ApiResponse> getSsoConfig() {
-        try {
-            Long tenantId = getTenantIdOrThrow();
-            TenantSsoConfig config = ssoConfigService.getOrCreateSsoConfig(tenantId);
+ * Save JWT configuration
+ */
+@PostMapping("/save-jwt")
+public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
+    try {
+        Long tenantId = getTenantIdOrThrow();
 
-            logger.debug("SSO config retrieved for tenant ID: {}", tenantId);
-            return ResponseEntity.ok(new ApiResponse(true, "SSO configuration retrieved successfully", maskSensitiveData(config)));
+        System.out.println("========================================");
+        System.out.println("💾 Saving JWT Config for Tenant: " + tenantId);
+        System.out.println("========================================");
+        System.out.println("   - Enabled: " + dto.getJwtEnabled());
+        System.out.println("   - Login URL: " + dto.getMiniorangeLoginUrl());
+        System.out.println("   - Client ID: " + dto.getMiniorangeClientId());
+        System.out.println("   - Client Secret: " + (dto.getMiniorangeClientSecret() != null ? "***" : "null"));
+        System.out.println("   - Redirect URI (from request): " + dto.getMiniorangeRedirectUri());
 
-        } catch (IllegalArgumentException e) {
-            logger.warn("Invalid request: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Failed to retrieve SSO configuration", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ApiResponse(false, "Failed to retrieve SSO configuration. Please try again."));
+        // ⭐ Get existing config to preserve auto-generated redirect URI
+        TenantSsoConfig existingConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
+
+        // If JWT is enabled, validate required fields (except redirect URI which is auto-generated)
+        if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
+            validateRequiredField(dto.getMiniorangeLoginUrl(), "miniorangeLoginUrl");
+            validateRequiredField(dto.getMiniorangeClientId(), "miniorangeClientId");
+            validateRequiredField(dto.getMiniorangeClientSecret(), "miniorangeClientSecret");
+            
+            // Validate URLs
+            validateUrl(dto.getMiniorangeLoginUrl(), "MiniOrange Login URL");
         }
+
+        // ⭐ Preserve existing redirect URI if not provided in request
+        String redirectUri = dto.getMiniorangeRedirectUri();
+        if (redirectUri == null || redirectUri.trim().isEmpty()) {
+            redirectUri = existingConfig.getMiniorangeRedirectUri();
+            System.out.println("   - Using existing Redirect URI: " + redirectUri);
+        }
+
+        // Validate redirect URI exists
+        if (redirectUri == null || redirectUri.trim().isEmpty()) {
+            System.err.println("❌ Redirect URI not found!");
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse(false, "Redirect URI not configured. Please refresh the page."));
+        }
+
+        // Convert DTO to entity
+        TenantSsoConfig updates = new TenantSsoConfig();
+        updates.setJwtEnabled(dto.getJwtEnabled());
+        updates.setMiniorangeLoginUrl(sanitizeInput(dto.getMiniorangeLoginUrl()));
+        updates.setMiniorangeClientId(sanitizeInput(dto.getMiniorangeClientId()));
+        updates.setMiniorangeClientSecret(dto.getMiniorangeClientSecret()); // Don't sanitize secrets
+        updates.setMiniorangeRedirectUri(redirectUri); // Use preserved redirect URI
+
+        System.out.println("   - Final Redirect URI: " + redirectUri);
+
+        TenantSsoConfig config = ssoConfigService.updateJwtConfig(tenantId, updates);
+
+        // Validate configuration if enabled
+        if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
+            if (!ssoConfigService.validateJwtConfig(config)) {
+                logger.warn("Invalid JWT configuration for tenant ID: {}", tenantId);
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse(false, "Invalid JWT configuration. Please check all required fields."));
+            }
+        }
+
+        logger.info("JWT config saved successfully for tenant ID: {}", tenantId);
+        System.out.println("✅ JWT config saved successfully");
+        System.out.println("========================================");
+        
+        return ResponseEntity.ok(new ApiResponse(true, "JWT configuration saved successfully", maskSensitiveData(config)));
+
+    } catch (IllegalArgumentException e) {
+        logger.warn("Invalid JWT configuration parameters: {}", e.getMessage());
+        return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
+    } catch (Exception e) {
+        logger.error("Failed to save JWT configuration", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse(false, "Failed to save JWT configuration. Please try again."));
     }
+}
 
     /**
      * Check SSO status for tenant
