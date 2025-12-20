@@ -87,6 +87,28 @@ public class TenantAdminController {
         // Build tenant URL
         String tenantUrl = buildTenantUrl(tenant.getSubdomain());
 
+        // ⭐ Generate and auto-populate redirect URIs if they don't exist
+        String baseUrl = buildBaseUrl(tenant.getSubdomain());
+        
+        if (ssoConfig.getOauthRedirectUri() == null || ssoConfig.getOauthRedirectUri().isEmpty()) {
+            ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
+        }
+        
+        if (ssoConfig.getSamlSpEntityId() == null || ssoConfig.getSamlSpEntityId().isEmpty()) {
+            ssoConfig.setSamlSpEntityId(baseUrl);
+        }
+        
+        if (ssoConfig.getSamlSpAcsUrl() == null || ssoConfig.getSamlSpAcsUrl().isEmpty()) {
+            ssoConfig.setSamlSpAcsUrl(baseUrl + "/sso/saml/callback");
+        }
+        
+        if (ssoConfig.getMiniorangeRedirectUri() == null || ssoConfig.getMiniorangeRedirectUri().isEmpty()) {
+            ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");
+        }
+
+        // Save the auto-generated URIs
+        ssoConfigService.saveSsoConfig(ssoConfig);
+
         // Add attributes to model
         model.addAttribute("tenant", tenant);
         model.addAttribute("admin", admin);
@@ -104,6 +126,9 @@ public class TenantAdminController {
         System.out.println("   - Admin: " + admin.getEmail());
         System.out.println("   - Total Users: " + totalUsers);
         System.out.println("   - Tenant URL: " + tenantUrl);
+        System.out.println("   - OAuth Redirect URI: " + ssoConfig.getOauthRedirectUri());
+        System.out.println("   - SAML ACS URL: " + ssoConfig.getSamlSpAcsUrl());
+        System.out.println("   - JWT Redirect URI: " + ssoConfig.getMiniorangeRedirectUri());
 
         return "tenant-admin-dashboard";
     }
@@ -142,5 +167,31 @@ public class TenantAdminController {
         }
 
         return url;
+    }
+
+    /**
+     * Build base URL for redirect URIs (without trailing slash)
+     */
+    private String buildBaseUrl(String subdomain) {
+        String baseUrl;
+
+        // Development
+        if ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain)) {
+            baseUrl = protocol + "://" + subdomain + ".localhost:" + port;
+        }
+        // Production
+        else {
+            boolean isStandardPort =
+                    ("http".equals(protocol) && "80".equals(port)) ||
+                            ("https".equals(protocol) && "443".equals(port));
+
+            if (isStandardPort) {
+                baseUrl = protocol + "://" + subdomain + "." + appDomain;
+            } else {
+                baseUrl = protocol + "://" + subdomain + "." + appDomain + ":" + port;
+            }
+        }
+
+        return baseUrl;
     }
 }
