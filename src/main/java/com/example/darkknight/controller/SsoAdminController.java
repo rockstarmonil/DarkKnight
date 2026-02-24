@@ -41,21 +41,30 @@ public class SsoAdminController {
         try {
             Long tenantId = getTenantIdOrThrow();
 
-            // Validate URLs if SAML is enabled
+            // Validate required IdP fields when SAML is enabled
             if (Boolean.TRUE.equals(dto.getSamlEnabled())) {
-                validateUrl(dto.getSamlIdpLoginUrl(), "SAML IDP Login URL");
+                validateUrl(dto.getSamlIdpLoginUrl(), "SAML Login URL");
+                if (dto.getSamlIdpCertificate() == null || dto.getSamlIdpCertificate().isBlank()) {
+                    throw new IllegalArgumentException("X.509 certificate is required when SAML is enabled");
+                }
                 validateUrl(dto.getSamlSpAcsUrl(), "SAML SP ACS URL");
             }
+
+            // Normalize the pasted X.509 certificate: strip PEM headers & all whitespace
+            String normalizedCert = normalizeCertificate(dto.getSamlIdpCertificate());
 
             // Convert DTO to entity
             TenantSsoConfig updates = new TenantSsoConfig();
             updates.setSamlEnabled(dto.getSamlEnabled());
+            updates.setSamlIdpEntityId(sanitizeInput(dto.getSamlIdpEntityId()));
             updates.setSamlIdpLoginUrl(sanitizeInput(dto.getSamlIdpLoginUrl()));
+            updates.setSamlIdpCertificate(normalizedCert);
             updates.setSamlSpEntityId(sanitizeInput(dto.getSamlSpEntityId()));
             updates.setSamlSpAcsUrl(sanitizeInput(dto.getSamlSpAcsUrl()));
             updates.setSamlSpBinding(sanitizeInput(dto.getSamlSpBinding()));
             updates.setSamlSpNameIdFormat(sanitizeInput(dto.getSamlSpNameIdFormat()));
-            updates.setSamlCertificatePath(sanitizeInput(dto.getSamlCertificatePath()));
+            // samlCertificatePath is no longer set from UI; preserve existing value via
+            // service layer
 
             TenantSsoConfig config = ssoConfigService.updateSamlConfig(tenantId, updates);
 
@@ -64,12 +73,14 @@ public class SsoAdminController {
                 if (!ssoConfigService.validateSamlConfig(config)) {
                     logger.warn("Invalid SAML configuration for tenant ID: {}", tenantId);
                     return ResponseEntity.badRequest()
-                            .body(new ApiResponse(false, "Invalid SAML configuration. Please check all required fields."));
+                            .body(new ApiResponse(false,
+                                    "Invalid SAML configuration. Please check all required fields."));
                 }
             }
 
             logger.info("SAML config saved successfully for tenant ID: {}", tenantId);
-            return ResponseEntity.ok(new ApiResponse(true, "SAML configuration saved successfully", maskSensitiveData(config)));
+            return ResponseEntity
+                    .ok(new ApiResponse(true, "SAML configuration saved successfully", maskSensitiveData(config)));
 
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid SAML configuration parameters: {}", e.getMessage());
@@ -122,12 +133,14 @@ public class SsoAdminController {
                 if (!ssoConfigService.validateOauthConfig(config)) {
                     logger.warn("Invalid OAuth configuration for tenant ID: {}", tenantId);
                     return ResponseEntity.badRequest()
-                            .body(new ApiResponse(false, "Invalid OAuth configuration. Please check all required fields."));
+                            .body(new ApiResponse(false,
+                                    "Invalid OAuth configuration. Please check all required fields."));
                 }
             }
 
             logger.info("OAuth config saved successfully for tenant ID: {}", tenantId);
-            return ResponseEntity.ok(new ApiResponse(true, "OAuth configuration saved successfully", maskSensitiveData(config)));
+            return ResponseEntity
+                    .ok(new ApiResponse(true, "OAuth configuration saved successfully", maskSensitiveData(config)));
 
         } catch (IllegalArgumentException e) {
             logger.warn("Invalid OAuth configuration parameters: {}", e.getMessage());
@@ -143,85 +156,88 @@ public class SsoAdminController {
      * Save JWT configuration
      */
     /**
- * Save JWT configuration
- */
-@PostMapping("/save-jwt")
-public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
-    try {
-        Long tenantId = getTenantIdOrThrow();
+     * Save JWT configuration
+     */
+    @PostMapping("/save-jwt")
+    public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
+        try {
+            Long tenantId = getTenantIdOrThrow();
 
-        System.out.println("========================================");
-        System.out.println("💾 Saving JWT Config for Tenant: " + tenantId);
-        System.out.println("========================================");
-        System.out.println("   - Enabled: " + dto.getJwtEnabled());
-        System.out.println("   - Login URL: " + dto.getMiniorangeLoginUrl());
-        System.out.println("   - Client ID: " + dto.getMiniorangeClientId());
-        System.out.println("   - Client Secret: " + (dto.getMiniorangeClientSecret() != null ? "***" : "null"));
-        System.out.println("   - Redirect URI (from request): " + dto.getMiniorangeRedirectUri());
+            System.out.println("========================================");
+            System.out.println("💾 Saving JWT Config for Tenant: " + tenantId);
+            System.out.println("========================================");
+            System.out.println("   - Enabled: " + dto.getJwtEnabled());
+            System.out.println("   - Login URL: " + dto.getMiniorangeLoginUrl());
+            System.out.println("   - Client ID: " + dto.getMiniorangeClientId());
+            System.out.println("   - Client Secret: " + (dto.getMiniorangeClientSecret() != null ? "***" : "null"));
+            System.out.println("   - Redirect URI (from request): " + dto.getMiniorangeRedirectUri());
 
-        // ⭐ Get existing config to preserve auto-generated redirect URI
-        TenantSsoConfig existingConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
+            // ⭐ Get existing config to preserve auto-generated redirect URI
+            TenantSsoConfig existingConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
 
-        // If JWT is enabled, validate required fields (except redirect URI which is auto-generated)
-        if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
-            validateRequiredField(dto.getMiniorangeLoginUrl(), "miniorangeLoginUrl");
-            validateRequiredField(dto.getMiniorangeClientId(), "miniorangeClientId");
-            validateRequiredField(dto.getMiniorangeClientSecret(), "miniorangeClientSecret");
-            
-            // Validate URLs
-            validateUrl(dto.getMiniorangeLoginUrl(), "MiniOrange Login URL");
-        }
+            // If JWT is enabled, validate required fields (except redirect URI which is
+            // auto-generated)
+            if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
+                validateRequiredField(dto.getMiniorangeLoginUrl(), "miniorangeLoginUrl");
+                validateRequiredField(dto.getMiniorangeClientId(), "miniorangeClientId");
+                validateRequiredField(dto.getMiniorangeClientSecret(), "miniorangeClientSecret");
 
-        // ⭐ Preserve existing redirect URI if not provided in request
-        String redirectUri = dto.getMiniorangeRedirectUri();
-        if (redirectUri == null || redirectUri.trim().isEmpty()) {
-            redirectUri = existingConfig.getMiniorangeRedirectUri();
-            System.out.println("   - Using existing Redirect URI: " + redirectUri);
-        }
-
-        // Validate redirect URI exists
-        if (redirectUri == null || redirectUri.trim().isEmpty()) {
-            System.err.println("❌ Redirect URI not found!");
-            return ResponseEntity.badRequest()
-                    .body(new ApiResponse(false, "Redirect URI not configured. Please refresh the page."));
-        }
-
-        // Convert DTO to entity
-        TenantSsoConfig updates = new TenantSsoConfig();
-        updates.setJwtEnabled(dto.getJwtEnabled());
-        updates.setMiniorangeLoginUrl(sanitizeInput(dto.getMiniorangeLoginUrl()));
-        updates.setMiniorangeClientId(sanitizeInput(dto.getMiniorangeClientId()));
-        updates.setMiniorangeClientSecret(dto.getMiniorangeClientSecret()); // Don't sanitize secrets
-        updates.setMiniorangeRedirectUri(redirectUri); // Use preserved redirect URI
-
-        System.out.println("   - Final Redirect URI: " + redirectUri);
-
-        TenantSsoConfig config = ssoConfigService.updateJwtConfig(tenantId, updates);
-
-        // Validate configuration if enabled
-        if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
-            if (!ssoConfigService.validateJwtConfig(config)) {
-                logger.warn("Invalid JWT configuration for tenant ID: {}", tenantId);
-                return ResponseEntity.badRequest()
-                        .body(new ApiResponse(false, "Invalid JWT configuration. Please check all required fields."));
+                // Validate URLs
+                validateUrl(dto.getMiniorangeLoginUrl(), "MiniOrange Login URL");
             }
+
+            // ⭐ Preserve existing redirect URI if not provided in request
+            String redirectUri = dto.getMiniorangeRedirectUri();
+            if (redirectUri == null || redirectUri.trim().isEmpty()) {
+                redirectUri = existingConfig.getMiniorangeRedirectUri();
+                System.out.println("   - Using existing Redirect URI: " + redirectUri);
+            }
+
+            // Validate redirect URI exists
+            if (redirectUri == null || redirectUri.trim().isEmpty()) {
+                System.err.println("❌ Redirect URI not found!");
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse(false, "Redirect URI not configured. Please refresh the page."));
+            }
+
+            // Convert DTO to entity
+            TenantSsoConfig updates = new TenantSsoConfig();
+            updates.setJwtEnabled(dto.getJwtEnabled());
+            updates.setMiniorangeLoginUrl(sanitizeInput(dto.getMiniorangeLoginUrl()));
+            updates.setMiniorangeClientId(sanitizeInput(dto.getMiniorangeClientId()));
+            updates.setMiniorangeClientSecret(dto.getMiniorangeClientSecret()); // Don't sanitize secrets
+            updates.setMiniorangeRedirectUri(redirectUri); // Use preserved redirect URI
+
+            System.out.println("   - Final Redirect URI: " + redirectUri);
+
+            TenantSsoConfig config = ssoConfigService.updateJwtConfig(tenantId, updates);
+
+            // Validate configuration if enabled
+            if (Boolean.TRUE.equals(dto.getJwtEnabled())) {
+                if (!ssoConfigService.validateJwtConfig(config)) {
+                    logger.warn("Invalid JWT configuration for tenant ID: {}", tenantId);
+                    return ResponseEntity.badRequest()
+                            .body(new ApiResponse(false,
+                                    "Invalid JWT configuration. Please check all required fields."));
+                }
+            }
+
+            logger.info("JWT config saved successfully for tenant ID: {}", tenantId);
+            System.out.println("✅ JWT config saved successfully");
+            System.out.println("========================================");
+
+            return ResponseEntity
+                    .ok(new ApiResponse(true, "JWT configuration saved successfully", maskSensitiveData(config)));
+
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid JWT configuration parameters: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Failed to save JWT configuration", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse(false, "Failed to save JWT configuration. Please try again."));
         }
-
-        logger.info("JWT config saved successfully for tenant ID: {}", tenantId);
-        System.out.println("✅ JWT config saved successfully");
-        System.out.println("========================================");
-        
-        return ResponseEntity.ok(new ApiResponse(true, "JWT configuration saved successfully", maskSensitiveData(config)));
-
-    } catch (IllegalArgumentException e) {
-        logger.warn("Invalid JWT configuration parameters: {}", e.getMessage());
-        return ResponseEntity.badRequest().body(new ApiResponse(false, e.getMessage()));
-    } catch (Exception e) {
-        logger.error("Failed to save JWT configuration", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse(false, "Failed to save JWT configuration. Please try again."));
     }
-}
 
     /**
      * Check SSO status for tenant
@@ -291,8 +307,7 @@ public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDt
             // Only allow HTTPS in production (HTTP for dev/testing)
             if (!"https".equalsIgnoreCase(protocol) && !"http".equalsIgnoreCase(protocol)) {
                 throw new IllegalArgumentException(
-                        fieldName + " must use HTTP or HTTPS protocol"
-                );
+                        fieldName + " must use HTTP or HTTPS protocol");
             }
 
             // Validate host
@@ -303,8 +318,7 @@ public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDt
 
         } catch (MalformedURLException e) {
             throw new IllegalArgumentException(
-                    fieldName + " is not a valid URL: " + e.getMessage()
-            );
+                    fieldName + " is not a valid URL: " + e.getMessage());
         }
     }
 
@@ -321,6 +335,22 @@ public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDt
     }
 
     /**
+     * Normalize a pasted PEM certificate:
+     * strips header/footer lines and all whitespace so only the Base64 payload
+     * remains.
+     */
+    private String normalizeCertificate(String cert) {
+        if (cert == null || cert.isBlank()) {
+            return null;
+        }
+        return cert
+                .replace("-----BEGIN CERTIFICATE-----", "")
+                .replace("-----END CERTIFICATE-----", "")
+                .replaceAll("\\s+", "")
+                .trim();
+    }
+
+    /**
      * Mask sensitive data in config before returning to client
      */
     private Map<String, Object> maskSensitiveData(TenantSsoConfig config) {
@@ -331,7 +361,9 @@ public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDt
 
         // SAML
         maskedData.put("samlEnabled", config.getSamlEnabled());
+        maskedData.put("samlIdpEntityId", config.getSamlIdpEntityId());
         maskedData.put("samlIdpLoginUrl", config.getSamlIdpLoginUrl());
+        maskedData.put("samlIdpCertificate", config.getSamlIdpCertificate() != null ? "[CONFIGURED]" : null);
         maskedData.put("samlSpEntityId", config.getSamlSpEntityId());
         maskedData.put("samlSpAcsUrl", config.getSamlSpAcsUrl());
         maskedData.put("samlSpBinding", config.getSamlSpBinding());
@@ -354,7 +386,8 @@ public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDt
         maskedData.put("miniorangeClientSecret", config.getMiniorangeClientSecret() != null ? "********" : null);
         maskedData.put("miniorangeRedirectUri", config.getMiniorangeRedirectUri());
 
-        // AD (mask password) - Still included in response but handled by ActiveDirectoryController
+        // AD (mask password) - Still included in response but handled by
+        // ActiveDirectoryController
         maskedData.put("adEnabled", config.getAdEnabled());
         maskedData.put("adServerUrl", config.getAdServerUrl());
         maskedData.put("adUsername", config.getAdUsername());

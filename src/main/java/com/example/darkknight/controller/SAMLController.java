@@ -1,5 +1,6 @@
 package com.example.darkknight.controller;
 
+import com.example.darkknight.security.CustomUserDetails;
 import com.example.darkknight.model.Tenant;
 import com.example.darkknight.model.TenantSsoConfig;
 import com.example.darkknight.model.User;
@@ -91,8 +92,7 @@ public class SAMLController {
                     ssoConfig.getSamlSpBinding(),
                     ssoConfig.getSamlSpAcsUrl(),
                     ssoConfig.getSamlSpEntityId(),
-                    ssoConfig.getSamlSpNameIdFormat()
-            );
+                    ssoConfig.getSamlSpNameIdFormat());
 
             // Deflate + Base64 encode for redirect binding
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -125,12 +125,14 @@ public class SAMLController {
 
     /**
      * Step 2: Handle SAML Response (ACS Endpoint)
+     * Supports both HTTP-POST binding (IdP POSTs SAMLResponse form field)
+     * and HTTP-Redirect binding (IdP GETs with SAMLResponse query param).
      */
-    @PostMapping("/callback")
+    @RequestMapping(value = "/callback", method = { RequestMethod.POST, RequestMethod.GET })
     public String samlCallback(@RequestParam(value = "SAMLResponse", required = false) String samlResponse,
-                               @RequestParam(value = "RelayState", required = false) String relayState,
-                               HttpServletRequest request,
-                               Model model) {
+            @RequestParam(value = "RelayState", required = false) String relayState,
+            HttpServletRequest request,
+            Model model) {
         try {
             Long tenantId = TenantContext.getTenantId();
             if (tenantId == null) {
@@ -140,7 +142,9 @@ public class SAMLController {
             }
 
             System.out.println("📥 SAML callback received for tenant: " + tenantId);
+            System.out.println("📡 HTTP method: " + request.getMethod());
             System.out.println("🔍 RelayState: " + relayState);
+            System.out.println("📄 SAMLResponse present: " + (samlResponse != null && !samlResponse.isEmpty()));
 
             if (samlResponse == null || samlResponse.isEmpty()) {
                 System.err.println("❌ Missing SAML Response");
@@ -152,8 +156,16 @@ public class SAMLController {
             Tenant tenant = tenantRepository.findById(tenantId)
                     .orElseThrow(() -> new RuntimeException("Tenant not found"));
 
-            // Decode and parse SAML response
-            byte[] decodedBytes = Base64.getDecoder().decode(samlResponse);
+            // Decode SAMLResponse:
+            // - HTTP-POST binding: plain Base64 (no compression)
+            // - HTTP-Redirect binding: Base64 + DEFLATE compression
+            byte[] decodedBytes = Base64.getDecoder().decode(samlResponse.trim());
+
+            // Log first bytes for debugging
+            String previewXml = new String(decodedBytes, 0, Math.min(200, decodedBytes.length), StandardCharsets.UTF_8);
+            System.out.println(
+                    "📋 SAMLResponse preview (raw): " + previewXml.substring(0, Math.min(80, previewXml.length())));
+
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setNamespaceAware(true);
 
@@ -162,7 +174,22 @@ public class SAMLController {
             dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
             dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
 
-            Document document = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(decodedBytes));
+            // Try plain Base64 decode first (POST binding).
+            // If it's not valid XML, attempt DEFLATE inflation (Redirect binding).
+            Document document;
+            try {
+                document = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(decodedBytes));
+                System.out.println("✅ SAMLResponse decoded via POST binding (no inflation needed)");
+            } catch (Exception parseEx) {
+                System.out.println("🔄 POST-binding parse failed, trying Redirect binding (DEFLATE inflate)...");
+                try (java.util.zip.InflaterInputStream iis = new java.util.zip.InflaterInputStream(
+                        new ByteArrayInputStream(decodedBytes),
+                        new java.util.zip.Inflater(true))) {
+                    byte[] inflated = iis.readAllBytes();
+                    System.out.println("✅ SAMLResponse inflated successfully, length: " + inflated.length);
+                    document = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(inflated));
+                }
+            }
             document.getDocumentElement().normalize();
 
             // Extract NameID (email)
@@ -174,6 +201,21 @@ public class SAMLController {
             }
             String nameId = nameIdList.item(0).getTextContent().trim();
             System.out.println("👤 NameID extracted: " + nameId);
+
+            // Validate IdP Issuer if configured
+            TenantSsoConfig ssoConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
+            String expectedIssuer = ssoConfig.getSamlIdpEntityId();
+            if (expectedIssuer != null && !expectedIssuer.isBlank()) {
+                NodeList issuerNodes = document.getElementsByTagNameNS("*", "Issuer");
+                if (issuerNodes.getLength() > 0) {
+                    String responseIssuer = issuerNodes.item(0).getTextContent().trim();
+                    if (!expectedIssuer.equals(responseIssuer)) {
+                        System.err.println(
+                                "⚠️ SAML Issuer mismatch — expected: " + expectedIssuer + ", got: " + responseIssuer);
+                        // Warn but do not block — strict enforcement can be enabled later
+                    }
+                }
+            }
 
             // Extract attributes
             String extractedFirstName = "SAML User";
@@ -237,12 +279,14 @@ public class SAMLController {
             session.setAttribute("user", user);
             session.setAttribute("samlAuthenticated", true);
 
-            // Setup Spring Security
+            // Setup Spring Security — principal must be CustomUserDetails so that
+            // /dashboard and other controllers can cast it correctly
+            CustomUserDetails userDetails = new CustomUserDetails(user);
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
             authorities.add(new SimpleGrantedAuthority(user.getRole()));
 
             var auth = new UsernamePasswordAuthenticationToken(
-                    user.getEmail(), null, authorities);
+                    userDetails, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
             session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
@@ -292,7 +336,7 @@ public class SAMLController {
 
             System.out.println("📄 Generating SAML metadata for tenant: " + tenantId);
 
-            String certContent = loadCertificate(ssoConfig.getSamlCertificatePath());
+            String certContent = loadCertificate(ssoConfig);
 
             String metadata = """
                     <?xml version="1.0" encoding="UTF-8"?>
@@ -321,8 +365,7 @@ public class SAMLController {
                     certContent,
                     ssoConfig.getSamlSpNameIdFormat(),
                     ssoConfig.getSamlSpBinding(),
-                    ssoConfig.getSamlSpAcsUrl()
-            );
+                    ssoConfig.getSamlSpAcsUrl());
 
             System.out.println("✅ Metadata generated successfully");
             return metadata;
@@ -334,14 +377,30 @@ public class SAMLController {
         }
     }
 
-    private String loadCertificate(String certPath) throws IOException {
+    /**
+     * Load the IdP X.509 certificate for use in SAML metadata.
+     * Priority:
+     * 1. DB-stored inline cert (samlIdpCertificate field) — set by tenant admin via
+     * UI
+     * 2. Classpath file path (samlCertificatePath) — legacy fallback
+     */
+    private String loadCertificate(TenantSsoConfig ssoConfig) throws IOException {
+        // 1️⃣ Use DB-stored inline certificate (preferred)
+        String inlineCert = ssoConfig.getSamlIdpCertificate();
+        if (inlineCert != null && !inlineCert.isBlank()) {
+            System.out.println("🔐 Using DB-stored inline certificate");
+            // Already normalized (headers stripped) when saved — return as is
+            return inlineCert.replaceAll("\\s+", "");
+        }
+
+        // 2️⃣ Fall back to classpath file
+        String certPath = ssoConfig.getSamlCertificatePath();
         if (certPath == null || certPath.isEmpty()) {
             certPath = "classpath:Custom_SAML_App.cer";
         }
-
+        System.out.println("📂 Loading certificate from classpath: " + certPath);
         String resourcePath = certPath.replace("classpath:", "");
         ClassPathResource resource = new ClassPathResource(resourcePath);
-
         String cert = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
         return cert
                 .replace("-----BEGIN CERTIFICATE-----", "")

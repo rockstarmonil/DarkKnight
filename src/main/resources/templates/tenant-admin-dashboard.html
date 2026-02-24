@@ -540,25 +540,42 @@
 
             <form id="samlConfigForm" onsubmit="saveSamlConfig(event)">
                 <div class="field-group">
-                    <div class="field-group-title">Identity Provider Configuration</div>
+                    <div class="field-group-title">Identity Provider (IdP) Configuration</div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="samlIdpLoginUrl" class="form-label">IDP Login URL <span class="text-danger">*</span></label>
+                        <div class="col-md-12 mb-3">
+                            <label for="samlIdpEntityId" class="form-label">
+                                IdP Entity ID / Issuer <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="samlIdpEntityId" name="samlIdpEntityId"
+                                   th:value="${ssoConfig.samlIdpEntityId}"
+                                   placeholder="https://login.microsoftonline.com/your-tenant-id">
+                            <small class="text-muted">The unique identifier of your Identity Provider</small>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="samlIdpLoginUrl" class="form-label">
+                                SAML Login URL <span class="text-danger">*</span>
+                            </label>
                             <input type="url" class="form-control" id="samlIdpLoginUrl" name="samlIdpLoginUrl"
                                    th:value="${ssoConfig.samlIdpLoginUrl}"
-                                   placeholder="https://login.xecurify.com/moas/login" required>
+                                   placeholder="https://login.microsoftonline.com/your-tenant-id/saml2">
+                            <small class="text-muted">The SSO endpoint your IdP uses to receive authentication requests</small>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="samlCertificatePath" class="form-label">IDP Certificate Path</label>
-                            <input type="text" class="form-control" id="samlCertificatePath" name="samlCertificatePath"
-                                   th:value="${ssoConfig.samlCertificatePath}"
-                                   placeholder="classpath:Custom_SAML_App.cer">
+                        <div class="col-md-12 mb-3">
+                            <label for="samlIdpCertificate" class="form-label">
+                                X.509 Certificate <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="samlIdpCertificate" name="samlIdpCertificate"
+                                      rows="6"
+                                      placeholder="Paste your IdP X.509 certificate here (PEM format, with or without -----BEGIN CERTIFICATE----- headers)"
+                                      style="font-family: monospace; font-size: 0.85rem; resize: vertical;"
+                                      th:text="${ssoConfig.samlIdpCertificate != null ? ssoConfig.samlIdpCertificate : ''}"></textarea>
+                            <small class="text-muted">Download the certificate from your IdP and paste the full content here</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="field-group">
-                    <div class="field-group-title">Service Provider Metadata (Provide to IDP)</div>
+                    <div class="field-group-title">Service Provider Metadata — provide these to your IdP</div>
                     <div class="mb-3">
                         <label for="samlSpEntityId" class="form-label">SP Entity ID</label>
                         <div class="input-group">
@@ -570,7 +587,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="samlSpAcsUrl" class="form-label">SP ACS URL</label>
+                        <label for="samlSpAcsUrl" class="form-label">SP ACS URL (Assertion Consumer Service)</label>
                         <div class="input-group">
                             <input type="url" class="form-control" id="samlSpAcsUrl" name="samlSpAcsUrl"
                                    th:value="${ssoConfig.samlSpAcsUrl}" readonly>
@@ -910,11 +927,12 @@
 
         const data = {
             samlEnabled: document.getElementById('samlEnabled').checked,
-            samlIdpLoginUrl: form.samlIdpLoginUrl.value,
-            samlCertificatePath: form.samlCertificatePath.value
+            samlIdpEntityId: document.getElementById('samlIdpEntityId').value,
+            samlIdpLoginUrl: document.getElementById('samlIdpLoginUrl').value,
+            samlIdpCertificate: document.getElementById('samlIdpCertificate').value
         };
 
-        console.log('Saving SAML config:', data);
+        console.log('Saving SAML config:', { ...data, samlIdpCertificate: data.samlIdpCertificate ? '[PRESENT]' : '[EMPTY]' });
 
         try {
             const response = await fetch('/admin/sso/save-saml', {
@@ -935,14 +953,14 @@
 
     async function toggleSamlEnabled() {
         const isEnabled = document.getElementById('samlEnabled').checked;
-        const form = document.getElementById('samlConfigForm');
-        
+
         console.log('SAML toggle changed to:', isEnabled);
-        
+
         const data = {
             samlEnabled: isEnabled,
-            samlIdpLoginUrl: form.samlIdpLoginUrl.value || '',
-            samlCertificatePath: form.samlCertificatePath.value || ''
+            samlIdpEntityId: document.getElementById('samlIdpEntityId').value || '',
+            samlIdpLoginUrl: document.getElementById('samlIdpLoginUrl').value || '',
+            samlIdpCertificate: document.getElementById('samlIdpCertificate').value || ''
         };
 
         try {
@@ -952,7 +970,7 @@
                 body: JSON.stringify(data)
             });
             const result = await response.json();
-            
+
             if (result.success) {
                 showMessage('samlSaveMessage', 'success', isEnabled ? 'SAML enabled' : 'SAML disabled');
             } else {

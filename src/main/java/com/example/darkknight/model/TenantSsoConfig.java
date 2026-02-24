@@ -52,7 +52,15 @@ public class TenantSsoConfig {
 
     @Size(max = 500, message = "SAML Certificate Path must not exceed 500 characters")
     @Column(name = "saml_certificate_path", length = 500)
-    private String samlCertificatePath;
+    private String samlCertificatePath; // kept for backward compatibility
+
+    @Size(max = 500, message = "SAML IdP Entity ID must not exceed 500 characters")
+    @Column(name = "saml_idp_entity_id", length = 500)
+    private String samlIdpEntityId;
+
+    // Stores the raw X.509 PEM certificate pasted by the admin
+    @Column(name = "saml_idp_certificate", columnDefinition = "TEXT")
+    private String samlIdpCertificate;
 
     // ===============================
     // OAuth/OIDC Configuration
@@ -171,10 +179,14 @@ public class TenantSsoConfig {
      */
     public String getEnabledSsoMethods() {
         StringBuilder methods = new StringBuilder();
-        if (Boolean.TRUE.equals(samlEnabled)) methods.append("SAML,");
-        if (Boolean.TRUE.equals(oauthEnabled)) methods.append("OAuth,");
-        if (Boolean.TRUE.equals(jwtEnabled)) methods.append("JWT,");
-        if (Boolean.TRUE.equals(adEnabled)) methods.append("Active Directory,");
+        if (Boolean.TRUE.equals(samlEnabled))
+            methods.append("SAML,");
+        if (Boolean.TRUE.equals(oauthEnabled))
+            methods.append("OAuth,");
+        if (Boolean.TRUE.equals(jwtEnabled))
+            methods.append("JWT,");
+        if (Boolean.TRUE.equals(adEnabled))
+            methods.append("Active Directory,");
 
         if (methods.length() > 0) {
             methods.setLength(methods.length() - 1); // Remove trailing comma

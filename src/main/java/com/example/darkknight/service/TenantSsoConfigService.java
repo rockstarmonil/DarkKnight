@@ -89,14 +89,32 @@ public class TenantSsoConfigService {
 
         TenantSsoConfig config = getOrCreateSsoConfig(tenantId);
 
-        // Update only SAML fields
+        // IdP fields — always written from UI
         config.setSamlEnabled(updates.getSamlEnabled());
         config.setSamlIdpLoginUrl(updates.getSamlIdpLoginUrl());
-        config.setSamlSpEntityId(updates.getSamlSpEntityId());
-        config.setSamlSpAcsUrl(updates.getSamlSpAcsUrl());
-        config.setSamlSpBinding(updates.getSamlSpBinding());
-        config.setSamlSpNameIdFormat(updates.getSamlSpNameIdFormat());
-        config.setSamlCertificatePath(updates.getSamlCertificatePath());
+        config.setSamlIdpEntityId(updates.getSamlIdpEntityId());
+        config.setSamlIdpCertificate(updates.getSamlIdpCertificate());
+
+        // SP fields are auto-generated on first dashboard load (TenantAdminController).
+        // The UI form does NOT submit them (readonly), so we must NOT overwrite
+        // existing
+        // DB values with null. Only update when a non-blank value is present.
+        if (isNotEmpty(updates.getSamlSpEntityId())) {
+            config.setSamlSpEntityId(updates.getSamlSpEntityId());
+        }
+        if (isNotEmpty(updates.getSamlSpAcsUrl())) {
+            config.setSamlSpAcsUrl(updates.getSamlSpAcsUrl());
+        }
+        if (isNotEmpty(updates.getSamlSpBinding())) {
+            config.setSamlSpBinding(updates.getSamlSpBinding());
+        }
+        if (isNotEmpty(updates.getSamlSpNameIdFormat())) {
+            config.setSamlSpNameIdFormat(updates.getSamlSpNameIdFormat());
+        }
+        // Legacy classpath cert path — preserve unless explicitly overriding
+        if (isNotEmpty(updates.getSamlCertificatePath())) {
+            config.setSamlCertificatePath(updates.getSamlCertificatePath());
+        }
 
         logger.debug("Updating SAML config for tenant ID: {}", tenantId);
         return saveSsoConfig(config);

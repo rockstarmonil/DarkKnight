@@ -9,10 +9,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SamlConfigDto {
     private Boolean samlEnabled;
-    private String samlIdpLoginUrl;
+
+    // IdP inputs provided by the tenant admin
+    private String samlIdpEntityId; // IdP Entity ID / Issuer
+    private String samlIdpLoginUrl; // SAML Login URL (SSO endpoint)
+    private String samlIdpCertificate; // X.509 certificate (PEM text, pasted by admin)
+
+    // SP metadata (auto-generated, read-only in UI)
     private String samlSpEntityId;
     private String samlSpAcsUrl;
     private String samlSpBinding;
     private String samlSpNameIdFormat;
-    private String samlCertificatePath;
 }

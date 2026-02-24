@@ -90,29 +90,27 @@ public class TenantAdminController {
         // ⭐ Generate and auto-populate redirect URIs if they don't exist
         String baseUrl = buildBaseUrl(tenant.getSubdomain());
         boolean needsSave = false;
-        
+
+        // SP metadata: always re-derive from current environment config so that
+        // changes to app.port / app.domain are automatically picked up.
+        ssoConfig.setSamlSpEntityId(baseUrl);
+        ssoConfig.setSamlSpAcsUrl(baseUrl + "/sso/saml/callback");
+        ssoConfig.setSamlSpBinding("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST");
+        ssoConfig.setSamlSpNameIdFormat("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress");
+        needsSave = true;
+
         if (ssoConfig.getOauthRedirectUri() == null || ssoConfig.getOauthRedirectUri().isEmpty()) {
             ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
-            needsSave = true;
         }
-        
-        if (ssoConfig.getSamlSpEntityId() == null || ssoConfig.getSamlSpEntityId().isEmpty()) {
-            ssoConfig.setSamlSpEntityId(baseUrl);
-            needsSave = true;
-        }
-        
-        if (ssoConfig.getSamlSpAcsUrl() == null || ssoConfig.getSamlSpAcsUrl().isEmpty()) {
-            ssoConfig.setSamlSpAcsUrl(baseUrl + "/sso/saml/callback");
-            needsSave = true;
-        }
-        
+
         if (ssoConfig.getMiniorangeRedirectUri() == null || ssoConfig.getMiniorangeRedirectUri().isEmpty()) {
             ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");
-            needsSave = true;
         }
 
         // Save the auto-generated URIs if any were missing
-        if (needsSave) {
+        if (needsSave)
+
+        {
             ssoConfigService.saveSsoConfig(ssoConfig);
             System.out.println("✅ Auto-generated SSO redirect URIs saved");
         }
@@ -163,9 +161,8 @@ public class TenantAdminController {
         else {
             String baseUrl = protocol + "://" + subdomain + "." + appDomain;
 
-            boolean isStandardPort =
-                    ("http".equals(protocol) && "80".equals(port)) ||
-                            ("https".equals(protocol) && "443".equals(port));
+            boolean isStandardPort = ("http".equals(protocol) && "80".equals(port)) ||
+                    ("https".equals(protocol) && "443".equals(port));
 
             if (isStandardPort) {
                 url = baseUrl;
@@ -189,9 +186,8 @@ public class TenantAdminController {
         }
         // Production
         else {
-            boolean isStandardPort =
-                    ("http".equals(protocol) && "80".equals(port)) ||
-                            ("https".equals(protocol) && "443".equals(port));
+            boolean isStandardPort = ("http".equals(protocol) && "80".equals(port)) ||
+                    ("https".equals(protocol) && "443".equals(port));
 
             if (isStandardPort) {
                 baseUrl = protocol + "://" + subdomain + "." + appDomain;
