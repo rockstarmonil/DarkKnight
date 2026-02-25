@@ -17,7 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -109,10 +108,19 @@ public class JwtSsoController {
 
     /**
      * Step 2: Handle JWT Callback and Authentication
+     *
+     * <p>
+     * Supports three token delivery modes used by different IdPs:
+     * <ol>
+     * <li><b>Query param</b> — {@code /jwt/callback?token=TOKEN} (most IdPs)</li>
+     * <li><b>Path segment</b> — {@code /jwt/callback/TOKEN} (slash-separated)</li>
+     * <li><b>Direct append</b>— {@code /jwt/callbackTOKEN} (MiniOrange
+     * behaviour)</li>
+     * <li><b>id_token param</b>— {@code /jwt/callback?id_token=TOKEN} (OIDC)</li>
+     * </ol>
      */
-    @GetMapping({ "/callback", "/callback/{token}" })
+    @GetMapping(value = { "/callback", "/callback/**", "/callback*" })
     public String handleJwtCallback(
-            @PathVariable(name = "token", required = false) String pathToken,
             @RequestParam(name = "token", required = false) String queryToken,
             @RequestParam(name = "id_token", required = false) String idToken,
             @RequestParam(name = "error", required = false) String error,
@@ -124,10 +132,35 @@ public class JwtSsoController {
         System.out.println("🔔 JWT Callback Received");
         System.out.println("========================================");
         System.out.println("📝 Query Token: " + (queryToken != null ? "present" : "null"));
-        System.out.println("📝 Path Token: " + (pathToken != null ? "present" : "null"));
-        System.out.println("📝 ID Token: " + (idToken != null ? "present" : "null"));
+        System.out.println("📝 ID Token (OIDC): " + (idToken != null ? "present" : "null"));
+        System.out.println("📝 URI-path token: (will extract from URI below)");
         System.out.println("📝 Error: " + error);
         System.out.println("📝 State: " + state);
+        System.out.println("📝 Request URI: " + request.getRequestURI());
+
+        // =====================================================================
+        // ⭐ Extract token from raw URI for MiniOrange's direct-append behaviour.
+        // MiniOrange sends: https://tenant.domain.com/jwt/callback<TOKEN>
+        // (no slash or query-param separator between "/callback" and the token).
+        // Spring MVC can route it via "/callback*" but cannot bind a @PathVariable
+        // from the directly-concatenated segment, so we extract it manually here.
+        // =====================================================================
+        String uriToken = null;
+        String requestUri = request.getRequestURI();
+        final String CALLBACK_PREFIX = "/jwt/callback";
+        if (requestUri.startsWith(CALLBACK_PREFIX)) {
+            String suffix = requestUri.substring(CALLBACK_PREFIX.length());
+            if (!suffix.isEmpty()) {
+                // Strip leading "/" for the /jwt/callback/TOKEN (slash-separated) case
+                if (suffix.startsWith("/")) {
+                    suffix = suffix.substring(1);
+                }
+                if (!suffix.isEmpty()) {
+                    uriToken = suffix;
+                    System.out.println("🔗 Token extracted from URI path, length: " + uriToken.length());
+                }
+            }
+        }
 
         if (error != null) {
             System.err.println("❌ JWT provider returned error: " + error);
@@ -159,8 +192,14 @@ public class JwtSsoController {
 
             System.out.println("🏢 Tenant: " + tenant.getName() + " (ID: " + tenant.getId() + ")");
 
-            // Determine which token to use (priority: queryToken > idToken > pathToken)
-            String token = queryToken != null ? queryToken : (idToken != null ? idToken : pathToken);
+            // Token priority: queryToken > idToken (OIDC) > uriToken (from path or
+            // MiniOrange direct-append)
+            String token = queryToken != null ? queryToken
+                    : (idToken != null ? idToken
+                            : uriToken);
+            System.out.println("📝 Token source: " + (queryToken != null ? "query param (?token=)"
+                    : idToken != null ? "id_token param (OIDC)"
+                            : uriToken != null ? "URI path (slash or MiniOrange direct-append)" : "NONE"));
             String clientSecret = ssoConfig.getMiniorangeClientSecret();
 
             if (token == null || token.isBlank()) {
