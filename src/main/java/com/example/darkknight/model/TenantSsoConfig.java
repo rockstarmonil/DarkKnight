@@ -116,6 +116,16 @@ public class TenantSsoConfig {
     @Column(name = "miniorange_redirect_uri", length = 500)
     private String miniorangeRedirectUri;
 
+    /**
+     * HMAC signing algorithm used to validate the JWT token issued by the IdP.
+     * Supported values: "HS256" (default), "HS384", "HS512".
+     * Displayed in the UI so administrators know which algorithm to configure
+     * on their IdP side.
+     */
+    @Size(max = 10, message = "JWT Algorithm must not exceed 10 characters")
+    @Column(name = "jwt_algorithm", length = 10)
+    private String jwtAlgorithm = "HS256";
+
     // ===============================
     // Active Directory Configuration
     // ===============================

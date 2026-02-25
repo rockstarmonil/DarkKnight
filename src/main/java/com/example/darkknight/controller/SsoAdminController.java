@@ -176,24 +176,21 @@ public class SsoAdminController {
     /**
      * Save JWT configuration
      */
-    /**
-     * Save JWT configuration
-     */
     @PostMapping("/save-jwt")
     public ResponseEntity<ApiResponse> saveJwtConfig(@Valid @RequestBody JwtConfigDto dto) {
         try {
             Long tenantId = getTenantIdOrThrow();
 
-            System.out.println("========================================");
-            System.out.println("💾 Saving JWT Config for Tenant: " + tenantId);
-            System.out.println("========================================");
-            System.out.println("   - Enabled: " + dto.getJwtEnabled());
-            System.out.println("   - Login URL: " + dto.getMiniorangeLoginUrl());
-            System.out.println("   - Client ID: " + dto.getMiniorangeClientId());
-            System.out.println("   - Client Secret: " + (dto.getMiniorangeClientSecret() != null ? "***" : "null"));
-            System.out.println("   - Redirect URI (from request): " + dto.getMiniorangeRedirectUri());
+            logger.info("========================================");
+            logger.info("Saving JWT Config for Tenant: {}", tenantId);
+            logger.info("   - Enabled: {}", dto.getJwtEnabled());
+            logger.info("   - Login URL: {}", dto.getMiniorangeLoginUrl());
+            logger.info("   - Client ID: {}", dto.getMiniorangeClientId());
+            logger.info("   - Client Secret: {}", dto.getMiniorangeClientSecret() != null ? "***" : "null");
+            logger.info("   - Algorithm: {}", dto.getJwtAlgorithm());
+            logger.info("   - Redirect URI (from request): {}", dto.getMiniorangeRedirectUri());
 
-            // ⭐ Get existing config to preserve auto-generated redirect URI
+            // Get existing config to preserve auto-generated redirect URI
             TenantSsoConfig existingConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
 
             // If JWT is enabled, validate required fields (except redirect URI which is
@@ -204,19 +201,27 @@ public class SsoAdminController {
                 validateRequiredField(dto.getMiniorangeClientSecret(), "miniorangeClientSecret");
 
                 // Validate URLs
-                validateUrl(dto.getMiniorangeLoginUrl(), "MiniOrange Login URL");
+                validateUrl(dto.getMiniorangeLoginUrl(), "JWT Login URL");
             }
 
-            // ⭐ Preserve existing redirect URI if not provided in request
+            // Validate algorithm choice
+            String algorithm = dto.getJwtAlgorithm();
+            if (algorithm != null && !algorithm.isBlank()) {
+                if (!algorithm.equals("HS256") && !algorithm.equals("HS384") && !algorithm.equals("HS512")) {
+                    throw new IllegalArgumentException("Invalid JWT algorithm. Supported: HS256, HS384, HS512");
+                }
+            }
+
+            // Preserve existing redirect URI if not provided in request
             String redirectUri = dto.getMiniorangeRedirectUri();
             if (redirectUri == null || redirectUri.trim().isEmpty()) {
                 redirectUri = existingConfig.getMiniorangeRedirectUri();
-                System.out.println("   - Using existing Redirect URI: " + redirectUri);
+                logger.info("   - Using existing Redirect URI: {}", redirectUri);
             }
 
             // Validate redirect URI exists
             if (redirectUri == null || redirectUri.trim().isEmpty()) {
-                System.err.println("❌ Redirect URI not found!");
+                logger.error("JWT Redirect URI not found!");
                 return ResponseEntity.badRequest()
                         .body(new ApiResponse(false, "Redirect URI not configured. Please refresh the page."));
             }
@@ -228,8 +233,11 @@ public class SsoAdminController {
             updates.setMiniorangeClientId(sanitizeInput(dto.getMiniorangeClientId()));
             updates.setMiniorangeClientSecret(dto.getMiniorangeClientSecret()); // Don't sanitize secrets
             updates.setMiniorangeRedirectUri(redirectUri); // Use preserved redirect URI
+            updates.setJwtAlgorithm(algorithm != null && !algorithm.isBlank() ? algorithm : null); // null = keep
+                                                                                                   // existing
 
-            System.out.println("   - Final Redirect URI: " + redirectUri);
+            logger.info("   - Final Redirect URI: {}", redirectUri);
+            logger.info("   - Final Algorithm: {}", algorithm);
 
             TenantSsoConfig config = ssoConfigService.updateJwtConfig(tenantId, updates);
 
@@ -406,6 +414,7 @@ public class SsoAdminController {
         maskedData.put("miniorangeClientId", config.getMiniorangeClientId());
         maskedData.put("miniorangeClientSecret", config.getMiniorangeClientSecret() != null ? "********" : null);
         maskedData.put("miniorangeRedirectUri", config.getMiniorangeRedirectUri());
+        maskedData.put("jwtAlgorithm", config.getJwtAlgorithm() != null ? config.getJwtAlgorithm() : "HS256");
 
         // AD (mask password) - Still included in response but handled by
         // ActiveDirectoryController

@@ -172,6 +172,12 @@ public class TenantSsoConfigService {
         config.setMiniorangeClientId(updates.getMiniorangeClientId());
         config.setMiniorangeClientSecret(updates.getMiniorangeClientSecret());
         config.setMiniorangeRedirectUri(updates.getMiniorangeRedirectUri());
+        // Persist the algorithm selection; default to HS256 when not provided
+        if (isNotEmpty(updates.getJwtAlgorithm())) {
+            config.setJwtAlgorithm(updates.getJwtAlgorithm());
+        } else if (config.getJwtAlgorithm() == null || config.getJwtAlgorithm().isBlank()) {
+            config.setJwtAlgorithm("HS256");
+        }
 
         logger.debug("Updating JWT config for tenant ID: {}", tenantId);
         return saveSsoConfig(config);

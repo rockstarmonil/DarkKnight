@@ -13,4 +13,6 @@ public class JwtConfigDto {
     private String miniorangeClientId;
     private String miniorangeClientSecret;
     private String miniorangeRedirectUri;
+    /** HMAC algorithm: "HS256" (default), "HS384", or "HS512" */
+    private String jwtAlgorithm;
 }

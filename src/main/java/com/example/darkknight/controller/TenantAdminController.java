@@ -103,10 +103,7 @@ public class TenantAdminController {
         // so that switching between dev (http://subdomain.localhost:8080) and
         // production (https://subdomain.pingmyserver.cfd) is automatically reflected.
         ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
-
-        if (ssoConfig.getMiniorangeRedirectUri() == null || ssoConfig.getMiniorangeRedirectUri().isEmpty()) {
-            ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");
-        }
+        ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");
 
         // Save the auto-generated URIs if any were missing
         if (needsSave)

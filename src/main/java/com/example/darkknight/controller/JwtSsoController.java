@@ -50,13 +50,13 @@ public class JwtSsoController {
         try {
             Long tenantId = TenantContext.getTenantId();
             String subdomain = TenantContext.getSubdomain();
-            
+
             System.out.println("========================================");
             System.out.println("🚀 JWT Login Initiated");
             System.out.println("========================================");
             System.out.println("📍 Tenant ID: " + tenantId);
             System.out.println("📍 Subdomain: " + subdomain);
-            
+
             if (tenantId == null) {
                 System.err.println("❌ No tenant context found");
                 return "redirect:/login?error=no_tenant";
@@ -81,7 +81,7 @@ public class JwtSsoController {
             HttpSession session = request.getSession(true);
             session.setAttribute("jwt_tenant_id", tenantId);
             session.setAttribute("jwt_subdomain", subdomain);
-            
+
             System.out.println("💾 Stored in session:");
             System.out.println("   - Tenant ID: " + tenantId);
             System.out.println("   - Subdomain: " + subdomain);
@@ -110,7 +110,7 @@ public class JwtSsoController {
     /**
      * Step 2: Handle JWT Callback and Authentication
      */
-    @GetMapping({"/callback", "/callback/{token}"})
+    @GetMapping({ "/callback", "/callback/{token}" })
     public String handleJwtCallback(
             @PathVariable(name = "token", required = false) String pathToken,
             @RequestParam(name = "token", required = false) String queryToken,
@@ -137,7 +137,7 @@ public class JwtSsoController {
         try {
             // Resolve tenant context
             Long tenantId = resolveTenantId(request, state);
-            
+
             if (tenantId == null) {
                 System.err.println("❌ Could not determine tenant context");
                 return "redirect:/login?error=no_tenant_context";
@@ -170,21 +170,30 @@ public class JwtSsoController {
 
             System.out.println("✅ JWT token received (length: " + token.length() + ")");
             System.out.println("🔑 Using tenant-specific JWT secret");
+            System.out.println("🔐 Algorithm: "
+                    + (ssoConfig.getJwtAlgorithm() != null ? ssoConfig.getJwtAlgorithm() : "HS256 (default)"));
 
             // ==========================================
             // Validate JWT token
             // ==========================================
             System.out.println("🔄 Validating JWT token");
-            
-            Map<String, Object> claims = jwtUtil.validateToken(token, clientSecret);
+
+            // Use the tenant's configured algorithm; fall back to HS256 for safety
+            String algorithm = ssoConfig.getJwtAlgorithm() != null && !ssoConfig.getJwtAlgorithm().isBlank()
+                    ? ssoConfig.getJwtAlgorithm()
+                    : "HS256";
+
+            Map<String, Object> claims = jwtUtil.validateToken(token, clientSecret, algorithm);
             System.out.println("✅ JWT token validated successfully");
             System.out.println("📄 JWT Claims: " + claims);
 
             // Extract user information
             String email = (String) claims.getOrDefault("email", claims.get("sub"));
             String name = (String) claims.getOrDefault("name", claims.getOrDefault("fullName", "JWT User"));
-            String firstName = (String) claims.getOrDefault("given_name", claims.getOrDefault("firstName", name.split(" ")[0]));
-            String lastName = (String) claims.getOrDefault("family_name", claims.getOrDefault("lastName", name.split(" ").length > 1 ? name.split(" ")[1] : ""));
+            String firstName = (String) claims.getOrDefault("given_name",
+                    claims.getOrDefault("firstName", name.split(" ")[0]));
+            String lastName = (String) claims.getOrDefault("family_name",
+                    claims.getOrDefault("lastName", name.split(" ").length > 1 ? name.split(" ")[1] : ""));
 
             if (email == null || email.isBlank()) {
                 System.err.println("❌ No email in JWT claims");
@@ -197,7 +206,7 @@ public class JwtSsoController {
             // Find or create user
             // ==========================================
             System.out.println("🔄 Finding or creating user");
-            
+
             final Long finalTenantId = tenantId;
             User user = userRepository.findByEmailAndTenantId(email, tenantId)
                     .orElseGet(() -> {
@@ -218,13 +227,14 @@ public class JwtSsoController {
 
             user.setUpdatedAt(LocalDateTime.now());
             userRepository.save(user);
-            System.out.println("💾 User saved - ID: " + user.getId() + ", Email: " + user.getEmail() + ", Role: " + user.getRole());
+            System.out.println("💾 User saved - ID: " + user.getId() + ", Email: " + user.getEmail() + ", Role: "
+                    + user.getRole());
 
             // ==========================================
             // Create authentication with CustomUserDetails
             // ==========================================
             System.out.println("🔄 Setting up Spring Security authentication");
-            
+
             CustomUserDetails userDetails = new CustomUserDetails(user);
 
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -270,7 +280,7 @@ public class JwtSsoController {
                 redirectUrl = "/user/dashboard";
                 System.out.println("🔀 Redirecting USER to: " + redirectUrl);
             }
-            
+
             System.out.println("========================================");
             System.out.println("✅ JWT Login Successful!");
             System.out.println("👤 User: " + user.getEmail());
@@ -289,10 +299,11 @@ public class JwtSsoController {
             System.err.println("Error Type: " + e.getClass().getName());
             System.err.println("Error Message: " + e.getMessage());
             System.err.println("========================================");
-            
+
             TenantContext.clear();
-            
-            return "redirect:/login?error=" + URLEncoder.encode("JWT failed: " + e.getMessage(), StandardCharsets.UTF_8);
+
+            return "redirect:/login?error="
+                    + URLEncoder.encode("JWT failed: " + e.getMessage(), StandardCharsets.UTF_8);
         }
     }
 
@@ -314,7 +325,7 @@ public class JwtSsoController {
                 tenantId = (Long) session.getAttribute("jwt_tenant_id");
                 subdomain = (String) session.getAttribute("jwt_subdomain");
                 System.out.println("📥 Session attributes - ID: " + tenantId + ", Subdomain: " + subdomain);
-                
+
                 if (tenantId != null) {
                     TenantContext.setTenantId(tenantId);
                     if (subdomain != null) {
@@ -357,7 +368,7 @@ public class JwtSsoController {
         System.out.println("========================================");
         System.out.println("👋 JWT Logout Initiated");
         System.out.println("========================================");
-        
+
         HttpSession session = request.getSession(false);
         if (session != null) {
             User user = (User) session.getAttribute("user");
@@ -370,17 +381,17 @@ public class JwtSsoController {
         } else {
             System.out.println("ℹ️ No active session found");
         }
-        
+
         SecurityContextHolder.clearContext();
         System.out.println("✅ Security context cleared");
-        
+
         TenantContext.clear();
         System.out.println("✅ Tenant context cleared");
-        
+
         System.out.println("========================================");
         System.out.println("✅ JWT Logout Complete");
         System.out.println("========================================");
-        
+
         return "redirect:/login?logout";
     }
 }

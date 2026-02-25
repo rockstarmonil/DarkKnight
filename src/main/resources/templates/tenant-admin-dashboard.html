@@ -704,18 +704,59 @@
             <div class="sso-config-section jwt-section">
                 <div class="sso-section-header">
                     <h4 class="sso-section-title jwt">
-                        <i class="bi bi-lock-fill me-2"></i>JWT Configuration
+                        <i class="bi bi-lock-fill me-2"></i>JWT SSO Configuration
                     </h4>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="jwtEnabled"
                             th:checked="${ssoConfig.jwtEnabled}" name="jwtEnabled" onchange="toggleJwtEnabled()">
-                        <label class="form-check-label text-white fw-semibold" for="jwtEnabled">Enable JWT</label>
+                        <label class="form-check-label text-white fw-semibold" for="jwtEnabled">Enable JWT SSO</label>
                     </div>
                 </div>
 
                 <form id="jwtConfigForm" onsubmit="saveJwtConfig(event)">
+
+                    <!-- Algorithm Info Banner -->
+                    <div class="field-group"
+                        style="border-left: 3px solid var(--neon-pink); background: rgba(255,0,255,0.05);">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <div class="field-group-title" style="margin-bottom:0.25rem;">🔐 Signing Algorithm</div>
+                                <small class="text-muted">The HMAC algorithm your IdP uses to sign JWT tokens. Configure
+                                    the same algorithm in your IdP.</small>
+                            </div>
+                            <span class="badge fs-6 px-3 py-2"
+                                style="background: rgba(255,0,255,0.2); color: var(--neon-pink); border: 1px solid var(--neon-pink); font-family: monospace;"
+                                th:text="${ssoConfig.jwtAlgorithm != null ? ssoConfig.jwtAlgorithm : 'HS256'}">HS256</span>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label for="jwtAlgorithm" class="form-label">Select HMAC Algorithm</label>
+                                <select class="form-select" id="jwtAlgorithm" name="jwtAlgorithm"
+                                    onchange="updateAlgDetails()">
+                                    <option value="HS256"
+                                        th:selected="${ssoConfig.jwtAlgorithm == null || ssoConfig.jwtAlgorithm == 'HS256'}">
+                                        HS256 — HMAC-SHA-256 (Recommended)</option>
+                                    <option value="HS384" th:selected="${ssoConfig.jwtAlgorithm == 'HS384'}">HS384 —
+                                        HMAC-SHA-384</option>
+                                    <option value="HS512" th:selected="${ssoConfig.jwtAlgorithm == 'HS512'}">HS512 —
+                                        HMAC-SHA-512</option>
+                                </select>
+                                <small class="text-muted">Must match what your Identity Provider is configured to
+                                    use</small>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="p-3 rounded" style="background: rgba(0,0,0,0.3); width: 100%;">
+                                    <div style="font-size:0.8rem; color:#aaa;">Algorithm Details</div>
+                                    <div id="algDetails"
+                                        style="font-size:0.85rem; color: var(--neon-pink); margin-top:0.25rem;">256-bit
+                                        key · Most compatible</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="field-group">
-                        <div class="field-group-title">Identity Provider Configuration</div>
+                        <div class="field-group-title">Identity Provider (IdP) Configuration</div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="jwtClientId" class="form-label">Client ID <span
@@ -723,31 +764,41 @@
                                 <input type="text" class="form-control" id="jwtClientId" name="jwtClientId"
                                     th:value="${ssoConfig.miniorangeClientId}" placeholder="your-jwt-client-id"
                                     required>
+                                <small class="text-muted">The application/client identifier registered on your
+                                    IdP</small>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="jwtClientSecret" class="form-label">Client Secret <span
-                                        class="text-danger">*</span></label>
+                                <label for="jwtClientSecret" class="form-label">
+                                    Signing Secret <span class="text-danger">*</span>
+                                    <span class="badge ms-1"
+                                        style="background:rgba(255,0,255,0.15);color:var(--neon-pink);font-size:0.7rem;">Used
+                                        to verify token signature</span>
+                                </label>
                                 <div class="input-wrapper">
                                     <input type="password" class="form-control" id="jwtClientSecret"
                                         name="jwtClientSecret" th:value="${ssoConfig.miniorangeClientSecret}"
-                                        placeholder="your-jwt-client-secret" required>
+                                        placeholder="Paste the shared secret from your IdP" required>
                                     <i class="bi bi-eye password-toggle"
                                         onclick="togglePassword('jwtClientSecret')"></i>
                                 </div>
+                                <small class="text-muted">The shared secret your IdP uses to sign JWT tokens (HMAC
+                                    key)</small>
                             </div>
                             <div class="col-md-12 mb-3">
                                 <label for="jwtLoginUrl" class="form-label">JWT Login URL <span
                                         class="text-danger">*</span></label>
                                 <input type="url" class="form-control" id="jwtLoginUrl" name="jwtLoginUrl"
-                                    th:value="${ssoConfig.miniorangeLoginUrl}" placeholder="https://..." required>
+                                    th:value="${ssoConfig.miniorangeLoginUrl}"
+                                    placeholder="https://your-idp.example.com/jwt/sso" required>
+                                <small class="text-muted">The SSO endpoint on your IdP that initiates JWT login</small>
                             </div>
                         </div>
                     </div>
 
                     <div class="field-group">
-                        <div class="field-group-title">Redirect URI (Provide to IDP)</div>
+                        <div class="field-group-title">Callback URI — Provide this to your IdP</div>
                         <div class="mb-3">
-                            <label for="jwtRedirectUri" class="form-label">JWT Redirect URI</label>
+                            <label for="jwtRedirectUri" class="form-label">JWT Callback URL</label>
                             <div class="input-group">
                                 <input type="url" class="form-control" id="jwtRedirectUri" name="jwtRedirectUri"
                                     th:value="${ssoConfig.miniorangeRedirectUri}" readonly>
@@ -755,6 +806,8 @@
                                     <i class="bi bi-clipboard"></i> Copy
                                 </button>
                             </div>
+                            <small class="text-muted">Register this URL as the Redirect / Callback URI in your IdP
+                                settings</small>
                         </div>
                     </div>
 
@@ -1109,11 +1162,14 @@
                 jwtEnabled: document.getElementById('jwtEnabled').checked,
                 miniorangeLoginUrl: form.jwtLoginUrl.value,
                 miniorangeClientId: form.jwtClientId.value,
-                miniorangeClientSecret: form.jwtClientSecret.value
-                // ⭐ DON'T send miniorangeRedirectUri - it's auto-managed by backend
+                miniorangeClientSecret: form.jwtClientSecret.value,
+                // ⭐ Include redirect URI so backend can preserve / confirm it
+                miniorangeRedirectUri: document.getElementById('jwtRedirectUri').value || '',
+                // ⭐ Include chosen signing algorithm
+                jwtAlgorithm: document.getElementById('jwtAlgorithm').value
             };
 
-            console.log('Saving JWT config:', data);
+            console.log('Saving JWT config:', { ...data, miniorangeClientSecret: data.miniorangeClientSecret ? '[PRESENT]' : '[EMPTY]' });
 
             try {
                 const response = await fetch('/admin/sso/save-jwt', {
@@ -1142,8 +1198,11 @@
                 jwtEnabled: isEnabled,
                 miniorangeLoginUrl: form.jwtLoginUrl.value || '',
                 miniorangeClientId: form.jwtClientId.value || '',
-                miniorangeClientSecret: form.jwtClientSecret.value || ''
-                // ⭐ DON'T send miniorangeRedirectUri - backend will preserve it
+                miniorangeClientSecret: form.jwtClientSecret.value || '',
+                // ⭐ Include redirect URI so backend can preserve it
+                miniorangeRedirectUri: document.getElementById('jwtRedirectUri').value || '',
+                // ⭐ Include chosen algorithm
+                jwtAlgorithm: document.getElementById('jwtAlgorithm').value
             };
 
             try {
@@ -1157,16 +1216,26 @@
                 if (result.success) {
                     showMessage('jwtSaveMessage', 'success', isEnabled ? 'JWT authentication enabled' : 'JWT authentication disabled');
                 } else {
-                    // If save failed, revert the toggle
                     document.getElementById('jwtEnabled').checked = !isEnabled;
                     showMessage('jwtSaveMessage', 'danger', result.message);
                 }
             } catch (error) {
                 console.error('JWT toggle error:', error);
-                // Revert the toggle on error
                 document.getElementById('jwtEnabled').checked = !isEnabled;
                 showMessage('jwtSaveMessage', 'danger', 'Error updating JWT status');
             }
+        }
+
+        // Update algorithm detail text when dropdown changes
+        function updateAlgDetails() {
+            const details = {
+                'HS256': '256-bit key · Most compatible',
+                'HS384': '384-bit key · Stronger',
+                'HS512': '512-bit key · Maximum strength'
+            };
+            const alg = document.getElementById('jwtAlgorithm').value;
+            const detailEl = document.getElementById('algDetails');
+            if (detailEl) detailEl.textContent = details[alg] || '256-bit key · Most compatible';
         }
 
         // ==========================================
