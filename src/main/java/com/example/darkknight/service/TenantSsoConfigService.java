@@ -138,7 +138,12 @@ public class TenantSsoConfigService {
         config.setOauthEnabled(updates.getOauthEnabled());
         config.setOauthClientId(updates.getOauthClientId());
         config.setOauthClientSecret(updates.getOauthClientSecret());
-        config.setOauthRedirectUri(updates.getOauthRedirectUri());
+        // ⭐ Preserve the auto-generated redirect URI — only overwrite if a non-blank
+        // value is explicitly provided. The UI never submits this (it's a readonly
+        // field), so the incoming value is typically null; we must not wipe the DB.
+        if (isNotEmpty(updates.getOauthRedirectUri())) {
+            config.setOauthRedirectUri(updates.getOauthRedirectUri());
+        }
         config.setOauthAuthorizationUrl(updates.getOauthAuthorizationUrl());
         config.setOauthTokenUrl(updates.getOauthTokenUrl());
         config.setOauthUserinfoUrl(updates.getOauthUserinfoUrl());

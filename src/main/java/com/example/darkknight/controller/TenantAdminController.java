@@ -99,9 +99,10 @@ public class TenantAdminController {
         ssoConfig.setSamlSpNameIdFormat("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress");
         needsSave = true;
 
-        if (ssoConfig.getOauthRedirectUri() == null || ssoConfig.getOauthRedirectUri().isEmpty()) {
-            ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
-        }
+        // Always re-derive OAuth and JWT redirect URIs from current environment config
+        // so that switching between dev (http://subdomain.localhost:8080) and
+        // production (https://subdomain.pingmyserver.cfd) is automatically reflected.
+        ssoConfig.setOauthRedirectUri(baseUrl + "/oauth/callback");
 
         if (ssoConfig.getMiniorangeRedirectUri() == null || ssoConfig.getMiniorangeRedirectUri().isEmpty()) {
             ssoConfig.setMiniorangeRedirectUri(baseUrl + "/jwt/callback");

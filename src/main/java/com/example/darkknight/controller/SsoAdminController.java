@@ -92,36 +92,56 @@ public class SsoAdminController {
         }
     }
 
-    /**
-     * Save OAuth configuration
-     */
     @PostMapping("/save-oauth")
     public ResponseEntity<ApiResponse> saveOauthConfig(@Valid @RequestBody OAuthConfigDto dto) {
         try {
             Long tenantId = getTenantIdOrThrow();
 
-            // If OAuth is enabled, validate all required fields
+            logger.info("========================================");
+            logger.info("Saving OAuth Config for Tenant: {}", tenantId);
+            logger.info("   - Enabled: {}", dto.getOauthEnabled());
+            logger.info("   - Client ID: {}", dto.getOauthClientId());
+            logger.info("   - Redirect URI (from request): {}", dto.getOauthRedirectUri());
+
+            // Get existing config to preserve the auto-generated redirect URI
+            TenantSsoConfig existingConfig = ssoConfigService.getOrCreateSsoConfig(tenantId);
+
+            // If OAuth is enabled, validate required user-supplied fields only.
+            // oauthRedirectUri is auto-managed by the server, NOT validated from client.
             if (Boolean.TRUE.equals(dto.getOauthEnabled())) {
                 validateRequiredField(dto.getOauthClientId(), "oauthClientId");
                 validateRequiredField(dto.getOauthClientSecret(), "oauthClientSecret");
-                validateRequiredField(dto.getOauthRedirectUri(), "oauthRedirectUri");
                 validateRequiredField(dto.getOauthAuthorizationUrl(), "oauthAuthorizationUrl");
                 validateRequiredField(dto.getOauthTokenUrl(), "oauthTokenUrl");
                 validateRequiredField(dto.getOauthUserinfoUrl(), "oauthUserinfoUrl");
 
                 // Validate URLs
-                validateUrl(dto.getOauthRedirectUri(), "OAuth Redirect URI");
                 validateUrl(dto.getOauthAuthorizationUrl(), "OAuth Authorization URL");
                 validateUrl(dto.getOauthTokenUrl(), "OAuth Token URL");
                 validateUrl(dto.getOauthUserinfoUrl(), "OAuth Userinfo URL");
             }
+
+            // Preserve existing redirect URI if DTO doesn't supply one
+            String redirectUri = dto.getOauthRedirectUri();
+            if (redirectUri == null || redirectUri.trim().isEmpty()) {
+                redirectUri = existingConfig.getOauthRedirectUri();
+                logger.info("   - Using existing Redirect URI: {}", redirectUri);
+            }
+
+            if (redirectUri == null || redirectUri.trim().isEmpty()) {
+                logger.error("OAuth Redirect URI not found in DB or request!");
+                return ResponseEntity.badRequest()
+                        .body(new ApiResponse(false, "OAuth Redirect URI not configured. Please refresh the page."));
+            }
+
+            logger.info("   - Final Redirect URI: {}", redirectUri);
 
             // Convert DTO to entity
             TenantSsoConfig updates = new TenantSsoConfig();
             updates.setOauthEnabled(dto.getOauthEnabled());
             updates.setOauthClientId(sanitizeInput(dto.getOauthClientId()));
             updates.setOauthClientSecret(dto.getOauthClientSecret()); // Don't sanitize secrets
-            updates.setOauthRedirectUri(sanitizeInput(dto.getOauthRedirectUri()));
+            updates.setOauthRedirectUri(redirectUri); // Use preserved redirect URI
             updates.setOauthAuthorizationUrl(sanitizeInput(dto.getOauthAuthorizationUrl()));
             updates.setOauthTokenUrl(sanitizeInput(dto.getOauthTokenUrl()));
             updates.setOauthUserinfoUrl(sanitizeInput(dto.getOauthUserinfoUrl()));
@@ -139,6 +159,7 @@ public class SsoAdminController {
             }
 
             logger.info("OAuth config saved successfully for tenant ID: {}", tenantId);
+            logger.info("========================================");
             return ResponseEntity
                     .ok(new ApiResponse(true, "OAuth configuration saved successfully", maskSensitiveData(config)));
 
