@@ -123,46 +123,54 @@
 
         .btn-sso {
             width: 100%;
-            padding: 0.75rem;
-            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
             font-weight: 600;
+            font-size: 0.95rem;
             border: 2px solid;
-            background: transparent;
-            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.03);
+            transition: all 0.3s ease;
             margin-bottom: 0.75rem;
+            letter-spacing: 0.3px;
         }
 
         .btn-saml {
             color: #00d4ff;
             border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
         }
 
         .btn-saml:hover {
-            background: rgba(0, 212, 255, 0.1);
-            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+            background: rgba(0, 212, 255, 0.15);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.35);
             transform: translateY(-2px);
+            color: #00d4ff;
         }
 
         .btn-oauth {
             color: #00ff88;
             border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.05);
         }
 
         .btn-oauth:hover {
-            background: rgba(0, 255, 136, 0.1);
-            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.35);
             transform: translateY(-2px);
+            color: #00ff88;
         }
 
         .btn-jwt {
             color: #ff00ff;
             border-color: #ff00ff;
+            background: rgba(255, 0, 255, 0.05);
         }
 
         .btn-jwt:hover {
-            background: rgba(255, 0, 255, 0.1);
-            box-shadow: 0 5px 20px rgba(255, 0, 255, 0.3);
+            background: rgba(255, 0, 255, 0.15);
+            box-shadow: 0 5px 20px rgba(255, 0, 255, 0.35);
             transform: translateY(-2px);
+            color: #ff00ff;
         }
 
         .alert {
@@ -230,12 +238,14 @@
         .btn-ad {
             color: #ff9900;
             border-color: #ff9900;
+            background: rgba(255, 153, 0, 0.05);
         }
 
         .btn-ad:hover {
-            background: rgba(255, 153, 0, 0.1);
-            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.3);
+            background: rgba(255, 153, 0, 0.15);
+            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.35);
             transform: translateY(-2px);
+            color: #ff9900;
         }
 
         .sso-badge.ad {
@@ -552,16 +562,22 @@
             document.getElementById('adSubmitBtn').disabled = true;
         });
 
-        // If page loaded with an error param AND the AD modal was last open, show the error inside the modal
+        // Auto-reopen the AD modal when redirected back with an AD-related error
         (function () {
             const params = new URLSearchParams(window.location.search);
-            const errText = params.get('error');
-            if (errText && (errText.includes('Active+Directory') || errText.includes('ad_') || errText.includes('AD'))) {
+            const rawErr = params.get('error');
+            if (!rawErr) return;
+            const errText = decodeURIComponent(rawErr.replace(/\+/g, ' '));
+            const isAdErr = errText.toLowerCase().includes('active directory')
+                || errText.toLowerCase().includes('ad_')
+                || errText.toLowerCase().includes('ldap')
+                || rawErr.startsWith('ad_');
+            if (isAdErr) {
                 const backdrop = document.getElementById('adModalBackdrop');
                 const msgEl = document.getElementById('adErrorMsg');
                 const textEl = document.getElementById('adErrorText');
                 if (backdrop && msgEl && textEl) {
-                    textEl.textContent = decodeURIComponent(errText.replace(/\+/g, ' '));
+                    textEl.textContent = errText;
                     msgEl.style.display = 'block';
                     backdrop.classList.add('show');
                 }
