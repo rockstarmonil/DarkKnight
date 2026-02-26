@@ -31,6 +31,7 @@ public class SecurityConfig {
                                                                 "/oauth/**",
                                                                 "/sso/**",
                                                                 "/jwt/**",
+                                                                "/ad/login",
                                                                 "/login",
                                                                 "/api/**",
                                                                 "/tenant/register",
@@ -40,6 +41,7 @@ public class SecurityConfig {
                                                 // Public Routes
                                                 .requestMatchers(
                                                                 "/jwt/**",
+                                                                "/ad/login",
                                                                 "/sso/saml/**",
                                                                 "/sso/oauth/**",
                                                                 "/oauth/**",

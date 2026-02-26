@@ -74,9 +74,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public String loginUser(@RequestParam String email,
-                            @RequestParam String password,
-                            HttpServletRequest request,
-                            Model model) {
+            @RequestParam String password,
+            HttpServletRequest request,
+            Model model) {
 
         Long tenantId = TenantContext.getTenantId();
         String subdomain = TenantContext.getSubdomain();
@@ -125,7 +125,8 @@ public class AuthController {
 
         System.out.println("✅ User found: " + user.getEmail() + " (Role: " + user.getRole() + ")");
         System.out.println("📍 User Tenant: " + (user.getTenant() != null ? user.getTenant().getName() : "NO TENANT"));
-        System.out.println("📍 User Tenant Subdomain: " + (user.getTenant() != null ? user.getTenant().getSubdomain() : "NO SUBDOMAIN"));
+        System.out.println("📍 User Tenant Subdomain: "
+                + (user.getTenant() != null ? user.getTenant().getSubdomain() : "NO SUBDOMAIN"));
         System.out.println("📍 User Enabled: " + user.isEnabled());
 
         // ==========================================
@@ -135,7 +136,8 @@ public class AuthController {
             Tenant userTenant = user.getTenant();
             String userTenantSubdomain = userTenant.getSubdomain();
 
-            System.out.println("🔍 Comparing subdomains - User's tenant: '" + userTenantSubdomain + "', Current: '" + subdomain + "'");
+            System.out.println("🔍 Comparing subdomains - User's tenant: '" + userTenantSubdomain + "', Current: '"
+                    + subdomain + "'");
 
             // Check if user is accessing correct tenant subdomain
             if (subdomain == null || !userTenantSubdomain.equalsIgnoreCase(subdomain)) {
@@ -146,7 +148,8 @@ public class AuthController {
                         ? "Please login at: " + correctUrl
                         : "You cannot login to this tenant. Please use: " + correctUrl;
 
-                System.out.println("❌ Tenant mismatch - User tenant: " + userTenantSubdomain + ", Current subdomain: " + subdomain);
+                System.out.println("❌ Tenant mismatch - User tenant: " + userTenantSubdomain + ", Current subdomain: "
+                        + subdomain);
                 model.addAttribute("error", errorMsg);
                 addLoginPageAttributes(model, tenantId, subdomain, request);
                 return "login";
@@ -223,7 +226,8 @@ public class AuthController {
     @GetMapping("/dashboard")
     public String redirectDashboard(Model model, Authentication authentication) {
 
-        System.out.println("🔄 Dashboard redirect - Principal type: " + authentication.getPrincipal().getClass().getName());
+        System.out.println(
+                "🔄 Dashboard redirect - Principal type: " + authentication.getPrincipal().getClass().getName());
 
         // Super Admin redirect
         if (authentication.getPrincipal() instanceof String &&
@@ -315,65 +319,65 @@ public class AuthController {
     // ========================================
 
     @GetMapping("/user/dashboard")
-public String userDashboard(Model model, Authentication authentication, HttpServletRequest request) {
-    
-    System.out.println("========================================");
-    System.out.println("📊 USER DASHBOARD ACCESS ATTEMPT");
-    System.out.println("========================================");
-    System.out.println("🔐 Authentication: " + (authentication != null ? "Present" : "NULL"));
-    
-    if (authentication != null) {
-        System.out.println("👤 Principal Type: " + authentication.getPrincipal().getClass().getName());
-        System.out.println("👤 Principal: " + authentication.getName());
-        System.out.println("🔑 Authorities: " + authentication.getAuthorities());
-        System.out.println("🔓 Authenticated: " + authentication.isAuthenticated());
-    }
-    
-    // Check tenant context
-    Long tenantId = TenantContext.getTenantId();
-    String subdomain = TenantContext.getSubdomain();
-    System.out.println("🏢 TenantContext - ID: " + tenantId + ", Subdomain: " + subdomain);
-    
-    // Try to restore from session if null
-    if (tenantId == null) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            tenantId = (Long) session.getAttribute("oauth_tenant_id");
-            subdomain = (String) session.getAttribute("oauth_subdomain");
-            
-            if (tenantId != null) {
-                TenantContext.setTenantId(tenantId);
-                TenantContext.setSubdomain(subdomain);
-                System.out.println("✅ Restored tenant context from session: " + tenantId);
+    public String userDashboard(Model model, Authentication authentication, HttpServletRequest request) {
+
+        System.out.println("========================================");
+        System.out.println("📊 USER DASHBOARD ACCESS ATTEMPT");
+        System.out.println("========================================");
+        System.out.println("🔐 Authentication: " + (authentication != null ? "Present" : "NULL"));
+
+        if (authentication != null) {
+            System.out.println("👤 Principal Type: " + authentication.getPrincipal().getClass().getName());
+            System.out.println("👤 Principal: " + authentication.getName());
+            System.out.println("🔑 Authorities: " + authentication.getAuthorities());
+            System.out.println("🔓 Authenticated: " + authentication.isAuthenticated());
+        }
+
+        // Check tenant context
+        Long tenantId = TenantContext.getTenantId();
+        String subdomain = TenantContext.getSubdomain();
+        System.out.println("🏢 TenantContext - ID: " + tenantId + ", Subdomain: " + subdomain);
+
+        // Try to restore from session if null
+        if (tenantId == null) {
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                tenantId = (Long) session.getAttribute("oauth_tenant_id");
+                subdomain = (String) session.getAttribute("oauth_subdomain");
+
+                if (tenantId != null) {
+                    TenantContext.setTenantId(tenantId);
+                    TenantContext.setSubdomain(subdomain);
+                    System.out.println("✅ Restored tenant context from session: " + tenantId);
+                }
             }
         }
+
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
+            System.err.println("❌ Invalid authentication or principal type");
+            System.err.println("❌ Expected CustomUserDetails but got: " +
+                    (authentication != null ? authentication.getPrincipal().getClass().getName() : "null"));
+            return "redirect:/login?error=invalid_auth";
+        }
+
+        CustomUserDetails customUser = (CustomUserDetails) authentication.getPrincipal();
+        String principalEmail = customUser.getUsername();
+
+        System.out.println("👤 Loading user from database: " + principalEmail);
+
+        User user = userRepository.findByEmail(principalEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
+
+        System.out.println("✅ User loaded: " + user.getEmail() + " (Role: " + user.getRole() + ")");
+
+        model.addAttribute("user", user);
+
+        System.out.println("========================================");
+        System.out.println("✅ USER DASHBOARD LOADED SUCCESSFULLY");
+        System.out.println("========================================");
+
+        return "user-dashboard";
     }
-
-    if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
-        System.err.println("❌ Invalid authentication or principal type");
-        System.err.println("❌ Expected CustomUserDetails but got: " + 
-            (authentication != null ? authentication.getPrincipal().getClass().getName() : "null"));
-        return "redirect:/login?error=invalid_auth";
-    }
-
-    CustomUserDetails customUser = (CustomUserDetails) authentication.getPrincipal();
-    String principalEmail = customUser.getUsername();
-    
-    System.out.println("👤 Loading user from database: " + principalEmail);
-
-    User user = userRepository.findByEmail(principalEmail)
-            .orElseThrow(() -> new RuntimeException("User not found: " + principalEmail));
-
-    System.out.println("✅ User loaded: " + user.getEmail() + " (Role: " + user.getRole() + ")");
-    
-    model.addAttribute("user", user);
-
-    System.out.println("========================================");
-    System.out.println("✅ USER DASHBOARD LOADED SUCCESSFULLY");
-    System.out.println("========================================");
-
-    return "user-dashboard";
-}
 
     // ========================================
     // REGISTRATION
@@ -433,6 +437,7 @@ public String userDashboard(Model model, Authentication authentication, HttpServ
         boolean samlEnabled = false;
         boolean oauthEnabled = false;
         boolean jwtEnabled = false;
+        boolean adEnabled = false;
         TenantSsoConfig ssoConfig = null;
         String currentDomain = getCurrentDomain();
 
@@ -448,6 +453,7 @@ public String userDashboard(Model model, Authentication authentication, HttpServ
                     samlEnabled = Boolean.TRUE.equals(ssoConfig.getSamlEnabled());
                     oauthEnabled = Boolean.TRUE.equals(ssoConfig.getOauthEnabled());
                     jwtEnabled = Boolean.TRUE.equals(ssoConfig.getJwtEnabled());
+                    adEnabled = Boolean.TRUE.equals(ssoConfig.getAdEnabled());
                 }
             }
         }
@@ -458,7 +464,8 @@ public String userDashboard(Model model, Authentication authentication, HttpServ
         model.addAttribute("samlEnabled", samlEnabled);
         model.addAttribute("oauthEnabled", oauthEnabled);
         model.addAttribute("jwtEnabled", jwtEnabled);
-        model.addAttribute("anySsoEnabled", samlEnabled || oauthEnabled || jwtEnabled);
+        model.addAttribute("adEnabled", adEnabled);
+        model.addAttribute("anySsoEnabled", samlEnabled || oauthEnabled || jwtEnabled || adEnabled);
 
         if (ssoConfig != null) {
             model.addAttribute("ssoConfig", ssoConfig);

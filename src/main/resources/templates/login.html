@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -225,114 +226,348 @@
             color: #ff00ff;
             border: 1px solid #ff00ff;
         }
+
+        .btn-ad {
+            color: #ff9900;
+            border-color: #ff9900;
+        }
+
+        .btn-ad:hover {
+            background: rgba(255, 153, 0, 0.1);
+            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .sso-badge.ad {
+            background: rgba(255, 153, 0, 0.2);
+            color: #ff9900;
+            border: 1px solid #ff9900;
+        }
+
+        /* ── AD Modal ─────────────────────────────────────────── */
+        .modal-backdrop-custom {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 1040;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-backdrop-custom.show {
+            display: flex;
+        }
+
+        .ad-modal-card {
+            background: rgba(20, 10, 35, 0.97);
+            border: 1px solid rgba(255, 153, 0, 0.4);
+            border-radius: 20px;
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 60px rgba(255, 153, 0, 0.2);
+            animation: slideUp 0.25s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .ad-modal-title {
+            background: linear-gradient(135deg, #ff9900, #ffcc44);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .ad-modal-subtitle {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .btn-ad-submit {
+            background: linear-gradient(135deg, #ff9900, #ffcc44);
+            border: none;
+            color: #0a0010;
+            padding: 0.75rem 2rem;
+            font-weight: 700;
+            border-radius: 10px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .btn-ad-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 153, 0, 0.4);
+        }
+
+        .btn-ad-cancel {
+            width: 100%;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.6);
+            padding: 0.6rem;
+            border-radius: 10px;
+            margin-top: 0.75rem;
+            transition: all 0.2s;
+        }
+
+        .btn-ad-cancel:hover {
+            border-color: rgba(255, 255, 255, 0.35);
+            color: #fff;
+        }
+
+        .ad-error-msg {
+            background: rgba(255, 0, 0, 0.08);
+            border: 1px solid #ff5555;
+            color: #ff5555;
+            border-radius: 10px;
+            padding: 0.6rem 1rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
     </style>
 </head>
+
 <body>
-<div class="login-container">
-    <div class="login-card">
-        <div class="text-center mb-4">
-            <i class="bi bi-shield-lock text-white" style="font-size: 3rem;"></i>
-            <h1 class="brand-title">Welcome Back</h1>
-            <div th:if="${subdomain != null}" class="subdomain-badge">
-                <i class="bi bi-building me-2"></i>
-                <span th:text="${subdomain}">subdomain</span>
-            </div>
-            <p class="tenant-name" th:text="${tenantName}">Tenant Name</p>
-        </div>
-
-        <!-- Error Message -->
-        <div th:if="${error}" class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <span th:text="${error}">Invalid email or password</span>
-        </div>
-
-        <div th:if="${param.error}" class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            Invalid email or password
-        </div>
-
-        <div th:if="${param.logout}" class="alert alert-success" style="background: rgba(0, 255, 136, 0.1); color: #00ff88; border: 1px solid #00ff88;">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            You have been logged out successfully
-        </div>
-
-        <!-- ✅ FIXED: Changed name="username" to name="email" -->
-        <form action="/login" method="post">
-            <div class="mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-control" name="email" placeholder="your@email.com" required autofocus>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <i class="bi bi-shield-lock text-white" style="font-size: 3rem;"></i>
+                <h1 class="brand-title">Welcome Back</h1>
+                <div th:if="${subdomain != null}" class="subdomain-badge">
+                    <i class="bi bi-building me-2"></i>
+                    <span th:text="${subdomain}">subdomain</span>
+                </div>
+                <p class="tenant-name" th:text="${tenantName}">Tenant Name</p>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+            <!-- Error Message -->
+            <div th:if="${error}" class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span th:text="${error}">Invalid email or password</span>
             </div>
 
-            <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="remember" name="remember-me">
-                <label class="form-check-label text-muted" for="remember">
-                    Remember me
-                </label>
+            <div th:if="${param.error}" class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Invalid email or password
             </div>
 
-            <button type="submit" class="btn btn-login">
-                <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-            </button>
-        </form>
-
-        <!-- SSO Section (shown only if any SSO is enabled) -->
-        <div th:if="${anySsoEnabled}" class="sso-section">
-            <div class="divider">
-                <span>OR SIGN IN WITH</span>
+            <div th:if="${param.logout}" class="alert alert-success"
+                style="background: rgba(0, 255, 136, 0.1); color: #00ff88; border: 1px solid #00ff88;">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                You have been logged out successfully
             </div>
 
-            <div class="sso-title">
-                <i class="bi bi-shield-check me-2"></i>Single Sign-On
-                <span th:if="${samlEnabled}" class="sso-badge saml">SAML</span>
-                <span th:if="${oauthEnabled}" class="sso-badge oauth">OAuth</span>
-                <span th:if="${jwtEnabled}" class="sso-badge jwt">JWT</span>
-            </div>
+            <!-- ✅ FIXED: Changed name="username" to name="email" -->
+            <form action="/login" method="post">
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" placeholder="your@email.com" required
+                        autofocus>
+                </div>
 
-            <!-- SAML SSO Button -->
-            <div th:if="${samlEnabled}">
-                <form th:action="@{/sso/saml/login}" method="get">
-                    <button type="submit" class="btn btn-sso btn-saml">
-                        <i class="bi bi-person-badge me-2"></i>
-                        Sign in with SAML
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="remember" name="remember-me">
+                    <label class="form-check-label text-muted" for="remember">
+                        Remember me
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-login">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                </button>
+            </form>
+
+            <!-- SSO Section (shown only if any SSO is enabled) -->
+            <div th:if="${anySsoEnabled}" class="sso-section">
+                <div class="divider">
+                    <span>OR SIGN IN WITH</span>
+                </div>
+
+                <div class="sso-title">
+                    <i class="bi bi-shield-check me-2"></i>Single Sign-On
+                    <span th:if="${samlEnabled}" class="sso-badge saml">SAML</span>
+                    <span th:if="${oauthEnabled}" class="sso-badge oauth">OAuth</span>
+                    <span th:if="${jwtEnabled}" class="sso-badge jwt">JWT</span>
+                    <span th:if="${adEnabled}" class="sso-badge ad">AD</span>
+                </div>
+
+                <!-- SAML SSO Button -->
+                <div th:if="${samlEnabled}">
+                    <form th:action="@{/sso/saml/login}" method="get">
+                        <button type="submit" class="btn btn-sso btn-saml">
+                            <i class="bi bi-person-badge me-2"></i>
+                            Sign in with SAML
+                        </button>
+                    </form>
+                </div>
+
+                <!-- OAuth SSO Button -->
+                <div th:if="${oauthEnabled}">
+                    <form th:action="@{/oauth/login}" method="get">
+                        <button type="submit" class="btn btn-sso btn-oauth">
+                            <i class="bi bi-google me-2"></i>
+                            Sign in with OAuth
+                        </button>
+                    </form>
+                </div>
+
+                <!-- JWT SSO Button -->
+                <div th:if="${jwtEnabled}">
+                    <form th:action="@{/jwt/login}" method="get">
+                        <button type="submit" class="btn btn-sso btn-jwt">
+                            <i class="bi bi-key me-2"></i>
+                            Sign in with JWT
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Active Directory Button -->
+                <div th:if="${adEnabled}">
+                    <button type="button" class="btn btn-sso btn-ad" id="adLoginBtn"
+                        onclick="document.getElementById('adModalBackdrop').classList.add('show')">
+                        <i class="bi bi-building-lock me-2"></i>
+                        Sign in with Active Directory
                     </button>
-                </form>
+                </div>
             </div>
 
-            <!-- OAuth SSO Button -->
-            <div th:if="${oauthEnabled}">
-                <form th:action="@{/oauth/login}" method="get">
-                    <button type="submit" class="btn btn-sso btn-oauth">
-                        <i class="bi bi-google me-2"></i>
-                        Sign in with OAuth
-                    </button>
-                </form>
+            <!-- Register Link (only for main domain) -->
+            <div th:if="${subdomain == null}" class="text-center mt-4">
+                <small class="text-muted">
+                    Don't have a tenant? <a href="/tenant/register" class="register-link">Register here</a>
+                </small>
             </div>
-
-            <!-- JWT SSO Button -->
-            <div th:if="${jwtEnabled}">
-                <form th:action="@{/jwt/login}" method="get">
-                    <button type="submit" class="btn btn-sso btn-jwt">
-                        <i class="bi bi-key me-2"></i>
-                        Sign in with JWT
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Register Link (only for main domain) -->
-        <div th:if="${subdomain == null}" class="text-center mt-4">
-            <small class="text-muted">
-                Don't have a tenant? <a href="/tenant/register" class="register-link">Register here</a>
-            </small>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- ── Active Directory Login Modal ──────────────────────────────────────── -->
+    <div id="adModalBackdrop" class="modal-backdrop-custom" onclick="closeAdModal(event)">
+        <div class="ad-modal-card" onclick="event.stopPropagation()">
+            <div class="text-center mb-3">
+                <i class="bi bi-building-lock" style="font-size:2.5rem; color:#ff9900;"></i>
+            </div>
+            <div class="ad-modal-title text-center">Active Directory Login</div>
+            <div class="ad-modal-subtitle text-center">Enter your corporate credentials</div>
+
+            <!-- Error message (populated from URL ?error param on redirect) -->
+            <div id="adErrorMsg" class="ad-error-msg">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span id="adErrorText">Invalid credentials</span>
+            </div>
+
+            <form method="post" action="/ad/login" id="adLoginForm">
+                <input type="hidden" th:name="_csrf" th:value="${_csrf != null ? _csrf.token : ''}">
+
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"
+                            style="background:rgba(255,153,0,0.1);border:1px solid rgba(255,153,0,0.3);border-right:none;color:#ff9900;">
+                            <i class="bi bi-person"></i>
+                        </span>
+                        <input type="text" id="adUsername" name="adUsername" class="form-control"
+                            placeholder="username or user@domain.com"
+                            style="border-left:none;border-color:rgba(255,153,0,0.3);" required autofocus
+                            autocomplete="username">
+                    </div>
+                    <small class="text-muted" style="font-size:0.78rem;">Enter your AD username, UPN, or email</small>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"
+                            style="background:rgba(255,153,0,0.1);border:1px solid rgba(255,153,0,0.3);border-right:none;color:#ff9900;">
+                            <i class="bi bi-lock"></i>
+                        </span>
+                        <input type="password" id="adPassword" name="adPassword" class="form-control"
+                            placeholder="••••••••" style="border-left:none;border-color:rgba(255,153,0,0.3);" required
+                            autocomplete="current-password">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-ad-submit" id="adSubmitBtn">
+                    <span id="adSubmitText"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In with AD</span>
+                    <span id="adSubmitSpinner" style="display:none;">
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>Authenticating...
+                    </span>
+                </button>
+
+                <button type="button" class="btn btn-ad-cancel" onclick="closeAdModal()">
+                    Cancel
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ── AD Modal helpers ─────────────────────────────────────
+        function closeAdModal(event) {
+            if (event && event.target !== document.getElementById('adModalBackdrop')) return;
+            document.getElementById('adModalBackdrop').classList.remove('show');
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') document.getElementById('adModalBackdrop').classList.remove('show');
+        });
+
+        // Show spinner on submit
+        document.getElementById('adLoginForm').addEventListener('submit', function () {
+            document.getElementById('adSubmitText').style.display = 'none';
+            document.getElementById('adSubmitSpinner').style.display = 'inline';
+            document.getElementById('adSubmitBtn').disabled = true;
+        });
+
+        // If page loaded with an error param AND the AD modal was last open, show the error inside the modal
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const errText = params.get('error');
+            if (errText && (errText.includes('Active+Directory') || errText.includes('ad_') || errText.includes('AD'))) {
+                const backdrop = document.getElementById('adModalBackdrop');
+                const msgEl = document.getElementById('adErrorMsg');
+                const textEl = document.getElementById('adErrorText');
+                if (backdrop && msgEl && textEl) {
+                    textEl.textContent = decodeURIComponent(errText.replace(/\+/g, ' '));
+                    msgEl.style.display = 'block';
+                    backdrop.classList.add('show');
+                }
+            }
+        })();
+    </script>
 </body>
+
 </html>
