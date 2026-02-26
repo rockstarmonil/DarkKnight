@@ -10,10 +10,12 @@ import com.example.darkknight.service.TenantSsoConfigService;
 import com.example.darkknight.util.JwtUtil;
 import com.example.darkknight.util.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,6 +42,9 @@ public class JwtSsoController {
 
     @Autowired
     private TenantSsoConfigService ssoConfigService;
+
+    @Autowired
+    private SecurityContextRepository securityContextRepository;
 
     /**
      * Step 1: Redirect user to JWT SSO login page
@@ -126,6 +131,7 @@ public class JwtSsoController {
             @RequestParam(name = "error", required = false) String error,
             @RequestParam(name = "state", required = false) String state,
             HttpServletRequest request,
+            HttpServletResponse response,
             Model model) {
 
         System.out.println("========================================");
@@ -295,7 +301,15 @@ public class JwtSsoController {
             System.out.println("📝 Session ID BEFORE setting auth: " + session.getId());
 
             SecurityContextHolder.getContext().setAuthentication(auth);
-            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+
+            // ⭐ Persist the security context via the repository (same mechanism Spring
+            // Security
+            // uses internally). This guarantees the context survives the redirect to
+            // /user/dashboard
+            // even when session-fixation protection or cross-origin cookie handling would
+            // otherwise
+            // drop the manually-set SPRING_SECURITY_CONTEXT attribute.
+            securityContextRepository.saveContext(SecurityContextHolder.getContext(), request, response);
 
             session.setAttribute("user", user);
             session.setAttribute("isLoggedIn", true);
@@ -305,7 +319,7 @@ public class JwtSsoController {
             session.setAttribute("jwt_subdomain", tenant.getSubdomain());
             session.setAttribute("tenantId", tenantId);
 
-            System.out.println("✅ Session created and security context saved");
+            System.out.println("✅ Session created and security context saved via SecurityContextRepository");
             System.out.println("📝 Session ID AFTER setting auth: " + session.getId());
 
             // ==========================================

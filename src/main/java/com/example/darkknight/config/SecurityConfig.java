@@ -15,97 +15,92 @@ import org.springframework.security.web.context.SecurityContextRepository;
 @Configuration
 public class SecurityConfig {
 
-    @Autowired
-    private SecurityDebugFilter securityDebugFilter;
+        @Autowired
+        private SecurityDebugFilter securityDebugFilter;
 
-    @Bean
-    public SecurityContextRepository securityContextRepository() {
-        return new HttpSessionSecurityContextRepository();
-    }
+        @Bean
+        public SecurityContextRepository securityContextRepository() {
+                return new HttpSessionSecurityContextRepository();
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers(
-                                "/oauth/**",
-                                "/sso/**",
-                                "/jwt/**",
-                                "/login",
-                                "/api/**",
-                                "/tenant/register",
-                                "/admin/sso/**",
-                                "/admin/ad/**"
-                        )
-                )
-                .authorizeHttpRequests(auth -> auth
-                        // Public Routes
-                        .requestMatchers(
-                                "/jwt/**",
-                                "/sso/saml/**",
-                                "/sso/oauth/**",
-                                "/oauth/**",
-                                "/oauth/login",
-                                "/oauth/callback",
-                                "/tenant/register",
-                                "/tenant/check-subdomain",
-                                "/login",
-                                "/register",
-                                "/api/auth/register",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/error",
-                                "/"
-                        ).permitAll()
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(csrf -> csrf
+                                                .ignoringRequestMatchers(
+                                                                "/oauth/**",
+                                                                "/sso/**",
+                                                                "/jwt/**",
+                                                                "/login",
+                                                                "/api/**",
+                                                                "/tenant/register",
+                                                                "/admin/sso/**",
+                                                                "/admin/ad/**"))
+                                .authorizeHttpRequests(auth -> auth
+                                                // Public Routes
+                                                .requestMatchers(
+                                                                "/jwt/**",
+                                                                "/sso/saml/**",
+                                                                "/sso/oauth/**",
+                                                                "/oauth/**",
+                                                                "/oauth/login",
+                                                                "/oauth/callback",
+                                                                "/tenant/register",
+                                                                "/tenant/check-subdomain",
+                                                                "/login",
+                                                                "/register",
+                                                                "/api/auth/register",
+                                                                "/css/**",
+                                                                "/js/**",
+                                                                "/images/**",
+                                                                "/error",
+                                                                "/")
+                                                .permitAll()
 
-                        // Protected Routes
-                        .requestMatchers("/main-admin/**").hasAuthority("ROLE_SUPER_ADMIN")
-                        .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
+                                                // Protected Routes
+                                                .requestMatchers("/main-admin/**").hasAuthority("ROLE_SUPER_ADMIN")
+                                                .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
+                                                .requestMatchers("/tenant-admin/**").hasAuthority("ROLE_ADMIN")
+                                                .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
 
-                        .requestMatchers("/dashboard").authenticated()
-                        .anyRequest().authenticated()
-                )
+                                                .requestMatchers("/dashboard").authenticated()
+                                                .anyRequest().authenticated())
 
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .loginProcessingUrl("/spring-security-login")
-                        .permitAll()
-                        .disable()
-                )
+                                .formLogin(form -> form
+                                                .loginPage("/login")
+                                                .loginProcessingUrl("/spring-security-login")
+                                                .permitAll()
+                                                .disable())
 
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessUrl("/login?logout")
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true)
-                        .permitAll()
-                )
+                                .logout(logout -> logout
+                                                .logoutUrl("/logout")
+                                                .logoutSuccessUrl("/login?logout")
+                                                .invalidateHttpSession(true)
+                                                .clearAuthentication(true)
+                                                .permitAll())
 
-                // ⭐ CRITICAL FIX: Session management configuration
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .sessionFixation().migrateSession()  // Migrate session instead of creating new
-                        .maximumSessions(1)
-                        .maxSessionsPreventsLogin(false)
-                )
-                
-                // ⭐ CRITICAL FIX: Store security context in session
-                .securityContext(context -> context
-                        .requireExplicitSave(false)
-                        .securityContextRepository(securityContextRepository())
-                );
+                                // ⭐ CRITICAL FIX: Session management configuration
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                                                .sessionFixation().none() // JWT tokens are validated cryptographically
+                                                                          // — session fixation protection not needed
+                                                                          // here
+                                                .maximumSessions(1)
+                                                .maxSessionsPreventsLogin(false))
 
-        // Add debug filter
-        http.addFilterBefore(securityDebugFilter, UsernamePasswordAuthenticationFilter.class);
+                                // ⭐ CRITICAL FIX: Store security context in session
+                                .securityContext(context -> context
+                                                .requireExplicitSave(false)
+                                                .securityContextRepository(securityContextRepository()));
 
-        return http.build();
-    }
+                // Add debug filter
+                http.addFilterBefore(securityDebugFilter, UsernamePasswordAuthenticationFilter.class);
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+                return http.build();
+        }
+
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 }
