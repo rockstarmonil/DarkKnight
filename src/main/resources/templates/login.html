@@ -128,7 +128,7 @@
             font-weight: 600;
             font-size: 0.95rem;
             border: 2px solid;
-            background: rgba(255, 255, 255, 0.03);
+            background: transparent;
             transition: all 0.3s ease;
             margin-bottom: 0.75rem;
             letter-spacing: 0.3px;
@@ -137,12 +137,11 @@
         .btn-saml {
             color: #00d4ff;
             border-color: #00d4ff;
-            background: rgba(0, 212, 255, 0.05);
         }
 
         .btn-saml:hover {
-            background: rgba(0, 212, 255, 0.15);
-            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.35);
+            background: rgba(0, 212, 255, 0.1);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
             transform: translateY(-2px);
             color: #00d4ff;
         }
@@ -150,12 +149,11 @@
         .btn-oauth {
             color: #00ff88;
             border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.05);
         }
 
         .btn-oauth:hover {
-            background: rgba(0, 255, 136, 0.15);
-            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.35);
+            background: rgba(0, 255, 136, 0.1);
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
             transform: translateY(-2px);
             color: #00ff88;
         }
@@ -163,12 +161,11 @@
         .btn-jwt {
             color: #ff00ff;
             border-color: #ff00ff;
-            background: rgba(255, 0, 255, 0.05);
         }
 
         .btn-jwt:hover {
-            background: rgba(255, 0, 255, 0.15);
-            box-shadow: 0 5px 20px rgba(255, 0, 255, 0.35);
+            background: rgba(255, 0, 255, 0.1);
+            box-shadow: 0 5px 20px rgba(255, 0, 255, 0.3);
             transform: translateY(-2px);
             color: #ff00ff;
         }
@@ -238,12 +235,11 @@
         .btn-ad {
             color: #ff9900;
             border-color: #ff9900;
-            background: rgba(255, 153, 0, 0.05);
         }
 
         .btn-ad:hover {
-            background: rgba(255, 153, 0, 0.15);
-            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.35);
+            background: rgba(255, 153, 0, 0.1);
+            box-shadow: 0 5px 20px rgba(255, 153, 0, 0.3);
             transform: translateY(-2px);
             color: #ff9900;
         }
@@ -499,7 +495,7 @@
             </div>
 
             <form method="post" action="/ad/login" id="adLoginForm">
-                <input type="hidden" th:name="_csrf" th:value="${_csrf != null ? _csrf.token : ''}">
+                <!-- No CSRF token needed: /ad/login is in SecurityConfig ignoringRequestMatchers -->
 
                 <div class="mb-3">
                     <label class="form-label">Username</label>
