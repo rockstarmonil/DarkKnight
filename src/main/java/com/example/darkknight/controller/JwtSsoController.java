@@ -90,16 +90,29 @@ public class JwtSsoController {
             System.out.println("   - Tenant ID: " + tenantId);
             System.out.println("   - Subdomain: " + subdomain);
 
+            // Strip any query string already embedded in the stored login URL.
+            // (Admins sometimes paste the full URL including
+            // ?client_id=...&redirect_uri=...
+            // into the DB field; appending params on top of that produces a doubled,
+            // malformed
+            // URL that makes MiniOrange ignore the redirect_uri and fall back to its own
+            // portal.)
+            String rawLoginUrl = ssoConfig.getMiniorangeLoginUrl();
+            String baseLoginUrl = rawLoginUrl.contains("?")
+                    ? rawLoginUrl.substring(0, rawLoginUrl.indexOf('?'))
+                    : rawLoginUrl;
+
             // Build the redirect link using dynamic values
-            String redirectLink = ssoConfig.getMiniorangeLoginUrl()
+            String redirectLink = baseLoginUrl
                     + "?client_id=" + URLEncoder.encode(ssoConfig.getMiniorangeClientId(), StandardCharsets.UTF_8)
                     + "&redirect_uri=" + URLEncoder.encode(ssoConfig.getMiniorangeRedirectUri(), StandardCharsets.UTF_8)
                     + "&state=" + tenantId;
 
-            System.out.println("🔗 JWT Login URL: " + ssoConfig.getMiniorangeLoginUrl());
+            System.out.println("🔗 JWT Login URL (raw): " + rawLoginUrl);
+            System.out.println("🔗 JWT Login URL (base, query stripped): " + baseLoginUrl);
             System.out.println("🔗 Client ID: " + ssoConfig.getMiniorangeClientId());
             System.out.println("🔗 Redirect URI: " + ssoConfig.getMiniorangeRedirectUri());
-            System.out.println("🔗 Full URL: " + redirectLink);
+            System.out.println("🔗 Full URL (clean): " + redirectLink);
             System.out.println("========================================");
 
             return "redirect:" + redirectLink;
