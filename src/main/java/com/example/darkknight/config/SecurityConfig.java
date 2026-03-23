@@ -81,12 +81,11 @@ public class SecurityConfig {
                                                 .clearAuthentication(true)
                                                 .permitAll())
 
-                                // ⭐ CRITICAL FIX: Session management configuration
+                                // Session management configuration
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                                                .sessionFixation().none() // JWT tokens are validated cryptographically
-                                                                          // — session fixation protection not needed
-                                                                          // here
+                                                .sessionFixation().newSession() // Rotate session ID on login to prevent
+                                                                                // session fixation attacks
                                                 .maximumSessions(1)
                                                 .maxSessionsPreventsLogin(false))
 

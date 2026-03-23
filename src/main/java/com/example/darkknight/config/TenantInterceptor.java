@@ -27,7 +27,8 @@ public class TenantInterceptor implements HandlerInterceptor {
     private String environment;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
         String host = request.getServerName();
         String subdomain = extractSubdomain(host);
         String requestUri = request.getRequestURI();
@@ -39,23 +40,24 @@ public class TenantInterceptor implements HandlerInterceptor {
         // ✅ SPECIAL HANDLING FOR OAuth/SAML/JWT CALLBACKS
         if (isAuthCallbackEndpoint(requestUri)) {
             System.out.println("🔄 Auth callback detected - restoring tenant context");
-            
+
             // Try to restore tenant context from session
             HttpSession session = request.getSession(false);
             if (session != null) {
                 Long savedTenantId = (Long) session.getAttribute("oauth_tenant_id");
                 String savedSubdomain = (String) session.getAttribute("oauth_subdomain");
-                
+
                 if (savedTenantId != null) {
                     TenantContext.setTenantId(savedTenantId);
                     if (savedSubdomain != null) {
                         TenantContext.setSubdomain(savedSubdomain);
                     }
-                    System.out.println("✅ Restored tenant context from session - ID: " + savedTenantId + ", Subdomain: " + savedSubdomain);
+                    System.out.println("✅ Restored tenant context from session - ID: " + savedTenantId + ", Subdomain: "
+                            + savedSubdomain);
                     return true;
                 }
             }
-            
+
             // If no session data, try to extract from subdomain
             if (subdomain != null && !subdomain.isEmpty()) {
                 Optional<Tenant> tenantOpt = tenantRepository.findBySubdomain(subdomain);
@@ -67,7 +69,7 @@ public class TenantInterceptor implements HandlerInterceptor {
                     return true;
                 }
             }
-            
+
             System.err.println("⚠️ Could not restore tenant context for auth callback");
             return true;
         }
@@ -75,17 +77,30 @@ public class TenantInterceptor implements HandlerInterceptor {
         // ✅ SPECIAL HANDLING FOR AUTHENTICATED USER PAGES
         if (isAuthenticatedUserEndpoint(requestUri)) {
             System.out.println("🔒 Authenticated endpoint detected - checking tenant context");
-            
-            // First, try to get from current context
+
+            // If there is a subdomain in the URL, that is always authoritative.
+            // Never let a stale session value override it — that is how cross-tenant
+            // data leaks happen.
+            if (subdomain != null && !subdomain.isEmpty()) {
+                Optional<Tenant> tenantOpt = tenantRepository.findBySubdomain(subdomain);
+                if (tenantOpt.isPresent()) {
+                    Tenant tenant = tenantOpt.get();
+                    TenantContext.setTenantId(tenant.getId());
+                    TenantContext.setSubdomain(subdomain);
+                    System.out.println("✅ Tenant resolved from URL subdomain: " + tenant.getName());
+                }
+                return true;
+            }
+
+            // No subdomain in URL — fall back to session (OAuth/JWT flows redirect
+            // back to the main domain, so session is the only source of truth here).
             Long tenantId = TenantContext.getTenantId();
-            
-            // If not in context, try to restore from session
             if (tenantId == null) {
                 HttpSession session = request.getSession(false);
                 if (session != null) {
                     tenantId = (Long) session.getAttribute("oauth_tenant_id");
                     String savedSubdomain = (String) session.getAttribute("oauth_subdomain");
-                    
+
                     if (tenantId != null) {
                         TenantContext.setTenantId(tenantId);
                         if (savedSubdomain != null) {
@@ -95,18 +110,7 @@ public class TenantInterceptor implements HandlerInterceptor {
                     }
                 }
             }
-            
-            // If still no tenant, try from subdomain
-            if (tenantId == null && subdomain != null && !subdomain.isEmpty()) {
-                Optional<Tenant> tenantOpt = tenantRepository.findBySubdomain(subdomain);
-                if (tenantOpt.isPresent()) {
-                    Tenant tenant = tenantOpt.get();
-                    TenantContext.setTenantId(tenant.getId());
-                    TenantContext.setSubdomain(subdomain);
-                    System.out.println("✅ Tenant resolved from subdomain: " + tenant.getName());
-                }
-            }
-            
+
             return true;
         }
 
@@ -156,15 +160,15 @@ public class TenantInterceptor implements HandlerInterceptor {
 
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response,
-                           Object handler, ModelAndView modelAndView) throws Exception {
+            Object handler, ModelAndView modelAndView) throws Exception {
         // Don't clear yet - wait for afterCompletion
     }
 
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
-                                Object handler, Exception ex) throws Exception {
+            Object handler, Exception ex) throws Exception {
         String requestUri = request.getRequestURI();
-        
+
         // ✅ DON'T clear tenant context for auth callbacks or authenticated pages
         // Let them maintain context across redirects
         if (!isAuthCallbackEndpoint(requestUri) && !isAuthenticatedUserEndpoint(requestUri)) {

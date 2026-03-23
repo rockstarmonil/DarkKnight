@@ -73,6 +73,19 @@ public class TenantAdminController {
             return "redirect:/error?message=Access+denied";
         }
 
+        // ⭐ SECURITY: Verify the authenticated admin belongs to the tenant in the URL.
+        // Without this check any logged-in ROLE_ADMIN could navigate to another
+        // tenant's
+        // subdomain and see their data — a critical cross-tenant information
+        // disclosure.
+        if (admin.getTenant() == null || !admin.getTenant().getId().equals(tenantId)) {
+            System.out.println("🚨 SECURITY: Admin " + username
+                    + " attempted to access dashboard for tenant " + tenantId
+                    + " but belongs to tenant "
+                    + (admin.getTenant() != null ? admin.getTenant().getId() : "NONE"));
+            return "redirect:/login?error=unauthorized_tenant";
+        }
+
         // Get all users for this tenant
         List<User> users = userRepository.findByTenantId(tenantId);
 
