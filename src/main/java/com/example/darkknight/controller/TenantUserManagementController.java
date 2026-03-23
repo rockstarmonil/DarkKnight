@@ -76,10 +76,10 @@ public class TenantUserManagementController {
                 return ResponseEntity.badRequest().body(response);
             }
 
-            // Check if email already exists
-            if (userRepository.existsByEmail(email)) {
+            // Check if email already exists within this tenant
+            if (userRepository.existsByEmailAndTenantId(email, tenantId)) {
                 response.put("success", false);
-                response.put("message", "Email already exists");
+                response.put("message", "A user with this email already exists in your tenant");
                 return ResponseEntity.badRequest().body(response);
             }
 

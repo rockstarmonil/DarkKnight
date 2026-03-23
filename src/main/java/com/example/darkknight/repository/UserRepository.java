@@ -36,9 +36,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByTenantId(Long tenantId);
 
     /**
-     * Check if user exists by email
+     * Check if user exists by email (global — for super-admin use only)
      */
     boolean existsByEmail(String email);
+
+    /**
+     * Check if user exists by email within a specific tenant
+     */
+    boolean existsByEmailAndTenantId(String email, Long tenantId);
 
     /**
      * Check if user exists by username

@@ -25,19 +25,19 @@
 
     <dependencies>
 
-        <!-- 🌐 Web -->
+        <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- 🎨 Thymeleaf for UI -->
+        <!-- Thymeleaf for UI -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!-- 💾 Database (Spring Data JPA + PostgreSQL) -->
+        <!-- Database (Spring Data JPA + PostgreSQL) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -49,25 +49,25 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 🔐 Spring Security -->
+        <!-- Spring Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- 🧩 Thymeleaf + Security integration -->
+        <!-- Thymeleaf + Security integration -->
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
         </dependency>
 
-        <!-- ✅ Validation (for request validation, etc.) -->
+        <!-- Validation (for request validation, etc.) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- 🧠 JWT (io.jsonwebtoken) -->
+        <!-- JWT (io.jsonwebtoken) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -88,7 +88,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 🧰 Lombok (auto-generate getters/setters) -->
+        <!-- Lombok (auto-generate getters/setters) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -96,14 +96,14 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- 🧩 Configuration processor (optional but helpful for IDE autocomplete) -->
+        <!-- Configuration processor (optional but helpful for IDE autocomplete) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- 🧑‍💻 Dev tools (auto restart, live reload) -->
+        <!-- Dev tools (auto restart, live reload) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
@@ -111,7 +111,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- 🧪 Testing -->
+        <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -147,7 +147,7 @@
 
     <build>
         <plugins>
-            <!-- ⚙️ Spring Boot Maven Plugin -->
+            <!-- Spring Boot Maven Plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

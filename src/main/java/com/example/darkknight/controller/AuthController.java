@@ -114,7 +114,15 @@ public class AuthController {
         // ==========================================
         // 2. NORMAL USER VALIDATION
         // ==========================================
-        User user = userRepository.findByEmail(email).orElse(null);
+        // When logging in through a tenant subdomain, scope the lookup to that tenant.
+        // This ensures that if two tenants share the same email address each user only
+        // ever authenticates against their own tenant's record.
+        User user;
+        if (tenantId != null) {
+            user = userRepository.findByEmailAndTenantId(email, tenantId).orElse(null);
+        } else {
+            user = userRepository.findByEmail(email).orElse(null);
+        }
 
         if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
             System.out.println("❌ Invalid credentials for email: " + email);
