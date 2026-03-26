@@ -36,7 +36,9 @@ public class SecurityConfig {
                                                                 "/api/**",
                                                                 "/tenant/register",
                                                                 "/admin/sso/**",
-                                                                "/admin/ad/**"))
+                                                                "/admin/ad/**",
+                                                                "/main-admin/**",
+                                                                "/tenant-admin/**"))
                                 .authorizeHttpRequests(auth -> auth
                                                 // Public Routes
                                                 .requestMatchers(

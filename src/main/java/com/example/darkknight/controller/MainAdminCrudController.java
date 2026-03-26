@@ -346,4 +346,47 @@ public class MainAdminCrudController {
 
         return response;
     }
+
+    /**
+     * Reset user password (Main Admin)
+     */
+    @PostMapping("/users/{id}/reset-password")
+    @ResponseBody
+    public Map<String, Object> resetUserPassword(@PathVariable Long id,
+                                                  @RequestBody Map<String, String> request,
+                                                  HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (session.getAttribute("superAdmin") == null) {
+                response.put("success", false);
+                response.put("message", "Unauthorized");
+                return response;
+            }
+
+            String newPassword = request.get("newPassword");
+            if (newPassword == null || newPassword.length() < 6) {
+                response.put("success", false);
+                response.put("message", "Password must be at least 6 characters");
+                return response;
+            }
+
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+
+            response.put("success", true);
+            response.put("message", "Password reset successfully");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "Error: " + e.getMessage());
+        }
+
+        return response;
+    }
 }

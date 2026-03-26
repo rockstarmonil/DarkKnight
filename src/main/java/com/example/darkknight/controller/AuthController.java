@@ -306,6 +306,11 @@ public class AuthController {
         long totalTenants = allTenants.size();
         long activeTenants = allTenants.stream().filter(Tenant::isActive).count();
 
+        // Build the display domain so the template can show correct tenant URLs
+        String displayDomain = ("development".equalsIgnoreCase(environment) || "localhost".equals(appDomain))
+                ? "localhost:" + port
+                : appDomain + (isStandardPort() ? "" : ":" + port);
+
         model.addAttribute("user", adminUser);
         model.addAttribute("superAdmin", superAdmin);
         model.addAttribute("admins", admins);
@@ -315,6 +320,7 @@ public class AuthController {
         model.addAttribute("tenants", allTenants);
         model.addAttribute("totalTenants", totalTenants);
         model.addAttribute("activeTenants", activeTenants);
+        model.addAttribute("appDomain", displayDomain);
 
         System.out.println("✅ Main Admin Dashboard - Tenants: " + totalTenants +
                 ", Admins: " + admins.size() + ", Users: " + users.size());
